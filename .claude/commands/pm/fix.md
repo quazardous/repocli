@@ -184,12 +184,24 @@ check_epic_task_lists() {
 fix_file_github_consistency() {
     echo "🔧 Fixing file-GitHub number consistency..."
     
+    # CRITICAL: Sort files by number in DESCENDING order to avoid conflicts
+    # If we rename 15.md→17.md before 16.md→18.md, we might overwrite existing files
+    local sorted_files=()
     for file in "${!inconsistent_files[@]}"; do
+        local local_number=$(basename "$file" .md)
+        sorted_files+=("$local_number:$file")
+    done
+    
+    # Sort by number (highest first) to prevent conflicts
+    IFS=$'\n' sorted_files=($(sort -rn -t: -k1 <<<"${sorted_files[*]}"))
+    
+    for entry in "${sorted_files[@]}"; do
+        local file="${entry#*:}"
         local github_number="${inconsistent_files[$file]}"
         local local_number=$(basename "$file" .md)
         local target_file="$(dirname "$file")/$github_number.md"
         
-        echo "  Renaming $file → $target_file"
+        echo "  Renaming $file → $target_file (descending order to avoid conflicts)"
         mv "$file" "$target_file"
         
         # Update epic task lists
@@ -281,12 +293,24 @@ run_issue_only_fix() {
     # Apply fixes automatically for --issue mode
     echo "🔧 Fixing file-GitHub number consistency..."
     
+    # CRITICAL: Sort files by number in DESCENDING order to avoid conflicts
+    # If we rename 15.md→17.md before 16.md→18.md, we might overwrite existing files
+    local sorted_files=()
     for file in "${!inconsistent_files[@]}"; do
+        local local_number=$(basename "$file" .md)
+        sorted_files+=("$local_number:$file")
+    done
+    
+    # Sort by number (highest first) to prevent conflicts
+    IFS=$'\n' sorted_files=($(sort -rn -t: -k1 <<<"${sorted_files[*]}"))
+    
+    for entry in "${sorted_files[@]}"; do
+        local file="${entry#*:}"
         local github_number="${inconsistent_files[$file]}"
         local local_number=$(basename "$file" .md)
         local target_file="$(dirname "$file")/$github_number.md"
         
-        echo "  📝 Renaming: $(basename "$file") → $github_number.md"
+        echo "  📝 Renaming: $(basename "$file") → $github_number.md (descending order)"
         mv "$file" "$target_file"
         
         # Update epic task lists
