@@ -72,4 +72,3 @@ This task [accomplishes/enables/provides] [brief impact statement].
 **PRIMARY**: Manage task status via GitHub issue status field using the values defined in TASK-STANDARDS.md
 
 **CURRENT**: Manual status updates in frontmatter and GitHub issue
-**FUTURE**: Automated label integration and workflow triggers (planned feature)

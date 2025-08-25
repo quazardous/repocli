@@ -125,10 +125,6 @@ When integrating with different providers, our extended status system provides a
 - Extended states provide granular workflow control within our system
 - Terminal states handle edge cases across all providers
 
-**FUTURE FEATURE**: GitHub label integration for enhanced workflow automation.
-- Planned: Automated label sync with status changes
-- Planned: Additional context labels (priority, type, area)
-- Planned: Workflow automation via GitHub Actions
 
 ## Status Workflow
 
@@ -164,7 +160,6 @@ any_status → duplicate (terminal)
 - Add comments explaining status changes and blocking factors
 - Use milestones for grouping related tasks
 - Reference blocking/dependent issues in comments
-- **FUTURE**: Automated label management and workflow triggers
 
 ## File Naming
 
