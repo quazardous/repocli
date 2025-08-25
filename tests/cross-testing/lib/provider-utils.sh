@@ -1,9 +1,25 @@
 #!/bin/bash
 # Provider-specific utility functions
 
-# Provider configuration mapping
+# Source shared utilities and isolation libraries
+source "$(dirname "${BASH_SOURCE[0]}")/test-isolation.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/provider-config.sh"
+
+# Provider configuration mapping (maintained for backward compatibility)
 get_provider_cli_tool() {
-    case "$1" in
+    local provider="$1"
+    
+    # Use new provider config system if available
+    if command -v init_provider_configs >/dev/null 2>&1; then
+        init_provider_configs 2>/dev/null || true
+        if [[ -n "${PROVIDER_CLI_TOOLS[$provider]:-}" ]]; then
+            echo "${PROVIDER_CLI_TOOLS[$provider]}"
+            return 0
+        fi
+    fi
+    
+    # Fallback to hardcoded mapping
+    case "$provider" in
         "github") echo "gh" ;;
         "gitlab") echo "glab" ;;
         "gitea"|"codeberg") echo "tea" ;;
@@ -24,21 +40,49 @@ check_provider_auth() {
     fi
 }
 
-# Execute REPOCLI command with provider context
+# Execute REPOCLI command with provider context (enhanced with isolation support)
 execute_repocli_test() {
     local provider="$1"
     local test_dir="$2"
     shift 2
     local command=("$@")
     
-    # Set up provider configuration
-    local config_file="$test_dir/repocli.conf"
-    if [[ -f "$config_file" ]]; then
-        cp "$config_file" "$REPOCLI_DIR/repocli.conf"
+    debug_log "Executing REPOCLI test: $provider ${command[*]}"
+    
+    # Check if isolation is active
+    if [[ "$ISOLATION_ACTIVE" == "true" ]]; then
+        # Use isolation system
+        debug_log "Using isolation system for test execution"
+        execute_isolated cd "$REPOCLI_DIR" && "$REPOCLI_BIN" "${command[@]}"
+    else
+        # Fallback to old behavior
+        debug_log "Using fallback execution method"
+        
+        # Set up provider configuration
+        local config_file="$test_dir/repocli.conf"
+        if [[ -f "$config_file" ]]; then
+            cp "$config_file" "$REPOCLI_DIR/repocli.conf"
+        fi
+        
+        # Execute command from REPOCLI directory
+        cd "$REPOCLI_DIR"
+        "$REPOCLI_BIN" "${command[@]}"
+    fi
+}
+
+# Execute REPOCLI command in isolated environment
+execute_repocli_isolated() {
+    local command=("$@")
+    
+    if [[ "$ISOLATION_ACTIVE" != "true" ]]; then
+        echo "Error: Isolation not active for isolated execution"
+        return 1
     fi
     
-    # Execute command from REPOCLI directory
-    cd "$REPOCLI_DIR"
+    debug_log "Executing isolated REPOCLI command: ${command[*]}"
+    
+    # Change to REPOCLI directory and execute
+    cd "$REPOCLI_DIR" || return 1
     "$REPOCLI_BIN" "${command[@]}"
 }
 
