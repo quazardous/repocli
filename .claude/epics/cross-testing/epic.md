@@ -3,8 +3,8 @@ name: cross-testing
 status: in_progress
 created: 2025-08-25T08:57:47Z
 updated: 2025-08-25T12:13:57Z
-last_sync: 2025-08-25T12:16:31Z
-progress: 10%
+last_sync: 2025-08-25T13:15:00Z
+progress: 45%
 prd: .claude/prds/cross-testing.md
 github: https://github.com/quazardous/repocli/issues/1
 ---
@@ -180,7 +180,7 @@ This command will:
 - [ ] #10 - Performance Optimization and Parallel Execution (parallel: false)
 - [ ] #14 - Implement Test Configuration Setup Command (depends on #15, #16) (parallel: true)
 - [x] #15 - Add --repocli-config option and REPOCLI_CONFIG environment variable support (parallel: false) ✅ COMPLETED
-- [ ] #16 - Fix wrapper option conflicts - avoid shadowing wrapped CLI commands (parallel: false) **🔥 CRITICAL HOTFIX**
+- [x] #16 - Fix wrapper option conflicts - avoid shadowing wrapped CLI commands (parallel: false) ✅ COMPLETED
 - [x] #2 - Create Test Framework Foundation (parallel: true) ✅ COMPLETED
 - [x] #3 - Implement Environment Isolation Utilities (parallel: false) ✅ COMPLETED
 - [x] #4 - Build JSON Output Comparison Engine (parallel: true) ✅ COMPLETED
@@ -190,11 +190,10 @@ This command will:
 - [ ] #8 - Integrate with Existing Test Suite (depends on #16) (parallel: false)
 - [ ] #9 - Add Custom GitLab Instance Support (depends on #16) (parallel: true)
 
-Total tasks: 12
-Completed tasks: 4
+Total tasks: 11
+Completed tasks: 5
 Parallel tasks: 6
-Sequential tasks: 6
-**🔥 CRITICAL HOTFIX: Issue #16 must be fixed immediately - wrapper shadowing CLI tools**
+Sequential tasks: 5
 ## Estimated Effort
 
 **Overall Timeline**: 3-5 days implementation
