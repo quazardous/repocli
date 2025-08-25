@@ -1,6 +1,6 @@
 ---
 name: Task Name
-status: open
+status: open  # open|in_progress|completed|blocked|pending|on_hold|needs_review|abandoned|wont_fix|duplicate
 created: YYYY-MM-DDTHH:MM:SSZ
 updated: 
 github: https://github.com/quazardous/repocli/issues/N
@@ -66,3 +66,15 @@ advanced_command_example
 ```
 
 This task [accomplishes/enables/provides] [brief impact statement].
+
+## GitHub Labels
+
+Recommended labels for this task:
+- `status: [current_status]`
+- `type: [bug|feature|enhancement|docs]`
+- `priority: [high|medium|low]`
+- Additional context labels as needed:
+  - `blocked: dependencies` (if blocked by other tasks)
+  - `blocked: external` (if blocked by external factors)
+  - `needs: review` (if awaiting review)
+  - `area: [component_name]` (for component-specific tasks)

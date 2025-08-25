@@ -61,10 +61,74 @@ conflicts_with: []  # GitHub issue numbers that conflict
 
 ## Status Values
 
-- `open` - Not started
-- `in_progress` - Work begun but not complete
-- `completed` - All acceptance criteria met
-- ~~`closed`~~ - Deprecated, use `completed`
+### Core Workflow States
+- `open` - Not started, ready to begin
+- `in_progress` - Currently being worked on
+- `completed` - All acceptance criteria met, ready for integration
+
+### Extended Workflow States
+- `blocked` - Cannot proceed due to dependencies or external factors
+- `pending` - Waiting for review, approval, or external input  
+- `on_hold` - Temporarily suspended, may resume later
+- `needs_review` - Implementation complete, requires validation
+
+### Terminal States
+- `abandoned` - Work stopped, will not be completed
+- `wont_fix` - Valid issue but intentionally not implemented
+- `duplicate` - Same as another task, reference other task
+
+### Deprecated
+- ~~`closed`~~ - Use `completed` instead
+- ~~`wip`~~ - Use `in_progress` instead
+
+### GitHub Label Integration
+
+These statuses should be reflected in GitHub issue labels using the format:
+- `status: open`
+- `status: in_progress` 
+- `status: blocked`
+- `status: completed`
+
+Additional context labels can be added:
+- `blocked: dependencies` - Blocked by other tasks
+- `blocked: external` - Blocked by external factors
+- `priority: high|medium|low`
+- `type: bug|feature|enhancement|docs`
+
+## Status Workflow
+
+### Normal Flow:
+```
+open → in_progress → needs_review → completed
+```
+
+### Alternative Flows:
+```
+open → blocked → in_progress → completed
+open → pending → in_progress → completed  
+in_progress → on_hold → in_progress → completed
+any_status → abandoned (terminal)
+any_status → wont_fix (terminal)
+any_status → duplicate (terminal)
+```
+
+### Status Change Triggers:
+- `open` → `in_progress`: Work begins on task
+- `in_progress` → `blocked`: Dependency or external factor prevents progress
+- `blocked` → `in_progress`: Blocking factor resolved
+- `in_progress` → `pending`: Waiting for review/approval/input
+- `pending` → `in_progress`: Review/approval received, work resumes
+- `in_progress` → `on_hold`: Temporarily suspended (resource constraints, priorities)
+- `on_hold` → `in_progress`: Work resumes
+- `in_progress` → `needs_review`: Implementation complete, needs validation
+- `needs_review` → `completed`: Review passed, all criteria met
+- `needs_review` → `in_progress`: Review feedback requires more work
+
+### GitHub Issue Integration:
+- Update issue labels when status changes
+- Add comments explaining status changes
+- Use milestones for grouping related tasks
+- Reference blocking/dependent issues in comments
 
 ## File Naming
 
