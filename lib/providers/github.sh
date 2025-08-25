@@ -309,3 +309,44 @@ rca_extension_install() {
     # GitHub: Direct passthrough - supports all native parameters
     exec gh extension install "$@"
 }
+
+#
+# SUB-ISSUE COMMANDS (PM system compatibility via extension)
+#
+
+# gh sub-issue create - Create child issue (requires yahsan2/gh-sub-issue extension)
+# Usage: repocli sub-issue create --parent ISSUE_NUMBER --title "Title" [options]
+# Parameters:
+#   --parent ISSUE_NUMBER: Parent issue number (REQUIRED)
+#   --title "Title": Child issue title (REQUIRED)
+#   --body-file PATH: Child issue body from file
+#   --label LABEL: Labels for child issue
+# Returns: Created issue information with number
+# PM Usage: Used by /pm:epic-sync for creating child tasks under epic issues
+# Error detection: status only - PM checks exit code for success/failure
+rca_sub_issue_create() {
+    [[ "$1" == "--repocli-can-handle" ]] && { echo "sub-issue create"; return 0; }
+    
+    # DOCUMENTATION: Sub-issue creation for PM system (via extension)
+    # Used by PM commands: /pm:epic-sync
+    # 
+    # GitHub CLI usage patterns (requires yahsan2/gh-sub-issue extension):
+    # gh sub-issue create --parent 123 --title "Task name" --body-file /tmp/task.md
+    # gh sub-issue create --parent 123 --title "Task" --label "epic-cross-testing"
+    #
+    # Parameter examples:
+    # --parent 123            # Parent issue number (REQUIRED)
+    # --title "task name"     # Child issue title (REQUIRED) 
+    # --body-file path.md     # Child issue body from file
+    # --label "label-name"    # Labels for child issue
+    #
+    # PM workflow integration:
+    # - Epic sync: Creates child tasks under epic issue
+    # - Task management: Maintains parent-child relationships
+    # - Issue organization: Groups related tasks under epics
+    #
+    # Error detection: status only - PM checks exit code for success/failure
+    
+    # GitHub: Direct passthrough to extension command
+    exec gh sub-issue "$@"
+}
