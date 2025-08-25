@@ -79,14 +79,32 @@ Using the test-runner agent ensures:
 - ❌ WRONG: Epic references "- [ ] #11 - Task Name" when GitHub issue is #14
 
 **Process:**
-1. Create task file with sequential number (e.g., `11.md`)
+1. Create task file with sequential number (e.g., `11.md`) with `github: # TO BE CREATED`
 2. Create GitHub issue from file (`gh issue create --body-file 11.md`)  
 3. GitHub assigns actual number (e.g., #14)
 4. **IMMEDIATELY** rename file (`mv 11.md 14.md`)
 5. **IMMEDIATELY** update file frontmatter (`github: .../issues/14`)
 6. **IMMEDIATELY** update epic task list to reference correct number (#14)
 
+### GitHub URL Assignment Rules
+- **NEVER pre-fill GitHub URLs for non-existent issues**
+- **USE `github: # TO BE CREATED` for new tasks**
+- **ONLY add actual GitHub URL after issue creation**
+- **PHANTOM URLS cause --fix flag confusion and sync issues**
+
+**✅ CORRECT:**
+```yaml
+github: # TO BE CREATED - issue not yet on GitHub
+```
+
+**❌ INCORRECT:**
+```yaml
+github: https://github.com/owner/repo/issues/27  # Issue doesn't exist yet!
+```
+
 ### Sync Operations
 - **ALWAYS maintain file-GitHub number consistency** during sync operations
 - **DETECT and FIX naming mismatches** during `/pm:sync`
 - **UPDATE epic task lists** when issue numbers change
+- **--fix flag is ONLY for existing issues with file naming problems**
+- **--fix flag does NOT work on phantom GitHub URLs**
