@@ -199,3 +199,8 @@ GitLab provider automatically handles custom instances:
 - All glab commands automatically use the custom instance
 
 This approach works because glab CLI respects the `GITLAB_HOST` environment variable for all operations.
+
+## Important Instructions
+
+- **DO NOT edit PM_TODO.md** unless explicitly asked by the user
+- PM_TODO.md is a reminder file that should only be modified when specifically requested
