@@ -17,17 +17,46 @@ CONFIG_LOCATIONS=(
 load_config() {
     local config_file=""
     
-    # Find configuration file
-    for location in "${CONFIG_LOCATIONS[@]}"; do
-        if [[ -f "$location" ]]; then
-            config_file="$location"
-            break
-        fi
-    done
+    # Priority order for configuration file selection:
+    # 1. CUSTOM_CONFIG_FILE (from --repocli-config CLI option) - highest priority
+    # 2. REPOCLI_CONFIG environment variable
+    # 3. Standard locations (existing hierarchy)
     
-    # If no config found, return with empty values
-    if [[ -z "$config_file" ]]; then
-        return 0
+    if [[ -n "${CUSTOM_CONFIG_FILE:-}" ]]; then
+        # CLI option specified
+        config_file="$CUSTOM_CONFIG_FILE"
+        if [[ ! -f "$config_file" ]]; then
+            echo "Error: Configuration file specified via --repocli-config does not exist: $config_file" >&2
+            exit 1
+        fi
+        if [[ ! -r "$config_file" ]]; then
+            echo "Error: Configuration file specified via --repocli-config is not readable: $config_file" >&2
+            exit 1
+        fi
+    elif [[ -n "${REPOCLI_CONFIG:-}" ]]; then
+        # Environment variable specified
+        config_file="$REPOCLI_CONFIG"
+        if [[ ! -f "$config_file" ]]; then
+            echo "Error: Configuration file specified via REPOCLI_CONFIG environment variable does not exist: $config_file" >&2
+            exit 1
+        fi
+        if [[ ! -r "$config_file" ]]; then
+            echo "Error: Configuration file specified via REPOCLI_CONFIG environment variable is not readable: $config_file" >&2
+            exit 1
+        fi
+    else
+        # Find configuration file from standard locations
+        for location in "${CONFIG_LOCATIONS[@]}"; do
+            if [[ -f "$location" ]]; then
+                config_file="$location"
+                break
+            fi
+        done
+        
+        # If no config found, return with empty values
+        if [[ -z "$config_file" ]]; then
+            return 0
+        fi
     fi
     
     # Parse configuration file

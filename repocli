@@ -31,7 +31,32 @@ fi
 source "$LIB_DIR/config.sh"
 source "$LIB_DIR/utils.sh"
 
-# Load configuration
+# Parse --repocli-config option early (before configuration loading)
+CUSTOM_CONFIG_FILE=""
+FILTERED_ARGS=()
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --repocli-config)
+            if [[ -n "${2:-}" ]] && [[ "${2}" != --* ]]; then
+                CUSTOM_CONFIG_FILE="$2"
+                shift 2
+            else
+                echo "Error: --repocli-config requires a configuration file path" >&2
+                exit 1
+            fi
+            ;;
+        *)
+            FILTERED_ARGS+=("$1")
+            shift
+            ;;
+    esac
+done
+
+# Restore filtered arguments
+set -- "${FILTERED_ARGS[@]}"
+
+# Load configuration (will use CUSTOM_CONFIG_FILE if set)
 load_config
 
 # Show help if no arguments
