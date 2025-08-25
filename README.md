@@ -325,7 +325,6 @@ MIT License. See [LICENSE](LICENSE) file for details.
 
 - 🐛 **Issues**: [GitHub Issues](https://github.com/quazardous/repocli/issues)
 - 💬 **Discussions**: [GitHub Discussions](https://github.com/quazardous/repocli/discussions)
-- 📧 **Email**: repocli@example.com
 
 ---
 

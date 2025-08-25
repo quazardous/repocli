@@ -58,3 +58,6 @@ docs/_build/
 # Cache directories
 .cache/
 *.cache
+
+# Claude Code
+.claude/
