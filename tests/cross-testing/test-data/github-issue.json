@@ -1,8 +1,8 @@
 {
   "id": 123456789,
   "number": 42,
-  "title": "Bug: Authentication fails with custom instance",
-  "body": "When using a custom GitLab instance, authentication fails unexpectedly.\n\nSteps to reproduce:\n1. Configure custom instance\n2. Run auth login\n3. Authentication fails",
+  "title": "Bug: Authentication fails with GitHub Enterprise",
+  "body": "When using GitHub Enterprise Server, authentication fails unexpectedly.\n\nSteps to reproduce:\n1. Configure GitHub Enterprise URL\n2. Run gh auth login\n3. Authentication fails",
   "state": "open",
   "html_url": "https://github.com/user/repo/issues/42",
   "created_at": "2023-06-15T10:30:00Z",

@@ -2,6 +2,7 @@
 name: cross-testing
 status: backlog
 created: 2025-08-25T08:57:47Z
+updated: 2025-08-25T12:08:46Z
 progress: 0%
 prd: .claude/prds/cross-testing.md
 github: https://github.com/quazardous/repocli/issues/1
@@ -12,6 +13,10 @@ github: https://github.com/quazardous/repocli/issues/1
 ## Overview
 
 Implement a cross-provider testing framework that validates REPOCLI command compatibility between GitHub CLI (`gh`) and GitLab CLI (`glab`). The system uses subdirectory isolation to test identical commands across providers, focusing on GitLab's complex parameter translation while leveraging GitHub's 1:1 passthrough as the baseline. Tests execute read-only operations on public repositories with JSON output comparison for semantic equivalence.
+
+⚠️ **CRITICAL ISOLATION REQUIREMENT**: Tests must NEVER interfere with user's actual GitHub/GitLab authentication or configurations. All tests run in completely isolated environments using temporary configurations that are automatically cleaned up.
+
+⚠️ **NO PROVIDER MIXING**: GitHub tests must ONLY use GitHub repositories, URLs, and terminology (e.g., github.com, gh CLI). GitLab tests must ONLY use GitLab repositories, URLs, and terminology (e.g., gitlab.com, glab CLI). Never mix provider-specific concepts in test data or implementations.
 
 ## Architecture Decisions
 
@@ -37,6 +42,7 @@ Implement a cross-provider testing framework that validates REPOCLI command comp
 - Support environment variable override for custom GitLab instances
 - Clean up test configurations after execution
 - Validate CLI tool availability before test execution
+- ⚠️ **ISOLATION GUARANTEE**: Never modify user's `~/.gitconfig`, `~/.repocli.conf`, `~/.config/repocli/`, or any GitHub/GitLab authentication files
 
 **Output Comparison Engine**
 - JSON output normalization and comparison using `jq`
@@ -104,7 +110,8 @@ High-level task categories that will be created:
 - GitHub CLI (`gh`) - already required by REPOCLI
 - GitLab CLI (`glab`) - already required by REPOCLI
 - `jq` tool for JSON processing - already used in GitLab provider
-- Public test repositories: `microsoft/vscode` (GitHub), `gitlab-org/gitlab` (GitLab)
+- Public test repositories: `microsoft/vscode` (GitHub)
+- **GitLab Test Repository**: User-provided via `.tests.conf` (private repository for comprehensive GitLab testing)
 
 **Internal Dependencies**
 - Existing configuration system (`lib/config.sh`)
@@ -114,8 +121,22 @@ High-level task categories that will be created:
 
 **Environment Dependencies**
 - Internet connectivity for API access
-- No authentication tokens required (read-only public repos)
+- No authentication tokens required for basic GitHub tests (read-only public repos)
+- **GitLab Testing Configuration**: Local `.tests.conf` file for private GitLab repository access
 - Optional: Custom GitLab instance URL via `GITLAB_TEST_INSTANCE` environment variable
+
+**GitLab Test Configuration (`.tests.conf`)**
+```ini
+# GitLab test repository (private, user-provided)
+gitlab_test_repo=your-username/your-test-repo
+gitlab_test_instance=https://gitlab.com  # or your custom instance
+
+# Optional: specific issue numbers for testing
+gitlab_test_issue=123
+gitlab_test_user=your-username
+```
+
+⚠️ **SECURITY**: The `.tests.conf` file must be excluded from version control (added to `.gitignore`) as it contains references to private repositories. A `.tests.conf.example` template file will be versioned for user guidance.
 
 ## Success Criteria (Technical)
 
