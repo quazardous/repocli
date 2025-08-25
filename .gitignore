@@ -45,7 +45,7 @@ node_modules/
 vendor/
 
 # Development environment
-.env
+#.env
 .env.local
 
 # Homebrew test artifacts
