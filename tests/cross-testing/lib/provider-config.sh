@@ -21,7 +21,10 @@ init_provider_configs() {
     PROVIDER_DEFAULT_INSTANCES["gitea"]=""
     PROVIDER_DEFAULT_INSTANCES["codeberg"]="codeberg.org"
     
-    debug_log "Provider configurations initialized"
+    # Use debug_log if available, otherwise skip
+    if command -v debug_log >/dev/null 2>&1; then
+        debug_log "Provider configurations initialized"
+    fi
 }
 
 # Generate configuration content for a specific provider

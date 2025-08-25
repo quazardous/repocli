@@ -33,24 +33,12 @@ gitlab_execute() {
         fi
     done
     
-    # Handle special cases that don't fit the rca_ pattern
-    case "$cmd" in
-        # Version command
-        "--version")
-            exec glab version
-            ;;
-        # Sub-issue operations (not supported)
-        "sub-issue")
-            echo "Error: sub-issue operations not directly supported in GitLab" >&2
-            echo "Use 'repocli issue create' with issue relationships instead" >&2
-            exit 1
-            ;;
-        *)
-            # Pass through unknown commands to glab
-            debug_log "Passing through unknown command to glab: $cmd $*"
-            exec glab "$cmd" "$@"
-            ;;
-    esac
+    # 🚨 RED FLAG: Command not handled by any rca_ function
+    echo "🚨 REPOCLI ERROR: Command '$cmd $*' not supported by GitLab provider" >&2
+    echo "   Available commands must be implemented as rca_ functions" >&2
+    echo "   This indicates missing functionality that needs to be implemented" >&2
+    debug_log "RED FLAG: Unsupported command attempted: $cmd $*"
+    exit 1
 }
 
 # Authentication commands with standardized rca_ naming
@@ -388,11 +376,15 @@ rca_issue_list() {
 # Label management commands with standardized rca_ naming
 # Extension system commands (not applicable for GitLab)
 rca_extension_list() {
+    [[ "$1" == "--repocli-can-handle" ]] && { echo "extension list"; return 0; }
+    
     debug_log "GitLab: Extensions not applicable"
     echo "GitLab CLI doesn't use extensions" >&2
 }
 
 rca_extension_install() {
+    [[ "$1" == "--repocli-can-handle" ]] && { echo "extension install"; return 0; }
+    
     debug_log "GitLab: Extensions not applicable"
     echo "Extensions not needed for GitLab CLI" >&2
 }
@@ -614,8 +606,18 @@ rca_label_delete() {
 }
 
 rca_label_clone() {
+    [[ "$1" == "--repocli-can-handle" ]] && { echo "label clone"; return 0; }
+    
     debug_log "GitLab: Label clone not supported"
     echo "Error: 'label clone' not supported in GitLab" >&2
     echo "Use 'repocli label list --json' and 'repocli label create' instead" >&2
     exit 1
+}
+
+# Version command
+rca_version() {
+    [[ "$1" == "--repocli-can-handle" ]] && { echo "--version"; return 0; }
+    
+    debug_log "GitLab: Handling version command"
+    exec glab version
 }
