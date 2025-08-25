@@ -259,30 +259,58 @@ run_issue_only_fix() {
     echo "🔧 PM Fix - Issue Number Consistency Only"
     echo "============================================"
     
-    # Run only file-GitHub consistency check
+    # Run URL validation and file-GitHub consistency check
     declare -A inconsistent_files
+    declare -a broken_url_files
     local issues_found=0
+    local urls_cleaned=0
     
-    echo "🔍 Checking file-GitHub number consistency..."
+    echo "🔍 Checking GitHub URL integrity and file-GitHub number consistency..."
     
     for file in .claude/epics/*/[0-9]*.md; do
         [[ ! -f "$file" ]] && continue
         
         local local_number=$(basename "$file" .md)
         local github_url=$(grep "^github:" "$file" | head -1 | cut -d' ' -f2-)
-        local github_number=$(echo "$github_url" | grep -o '[0-9]*$')
         
-        if [[ -n "$github_number" && "$local_number" != "$github_number" ]]; then
-            echo "❌ INCONSISTENCY: $file (local: #$local_number, GitHub: #$github_number)"
-            echo "   GitHub URL: $github_url"
-            inconsistent_files["$file"]="$github_number"
-            ((issues_found++))
+        # Step 1: URL Validation (skip # TO BE CREATED and empty)
+        if [[ -n "$github_url" && "$github_url" != "# TO BE CREATED" && "$github_url" != "#" ]]; then
+            local github_number=$(echo "$github_url" | grep -o '[0-9]*$')
+            
+            # Test if URL is valid issue (not PR, not 404, not wrong format)
+            if ! gh issue view "$github_number" &>/dev/null 2>&1; then
+                echo "🧹 BROKEN URL: $file has invalid GitHub URL"
+                echo "   URL: $github_url"
+                broken_url_files+=("$file")
+                ((urls_cleaned++))
+            else
+                # Step 2: File-GitHub number consistency check (only for valid URLs)
+                if [[ "$local_number" != "$github_number" ]]; then
+                    echo "❌ INCONSISTENCY: $file (local: #$local_number, GitHub: #$github_number)"
+                    echo "   GitHub URL: $github_url"
+                    inconsistent_files["$file"]="$github_number"
+                    ((issues_found++))
+                fi
+            fi
         fi
     done
     
+    # Clean broken URLs first
+    if [[ $urls_cleaned -gt 0 ]]; then
+        echo ""
+        echo "🧹 Cleaning $urls_cleaned broken GitHub URLs..."
+        for file in "${broken_url_files[@]}"; do
+            echo "  🔧 Cleaning: $(basename "$file") - marking for recreation"
+            sed -i "s/^github:.*/github: # TO BE CREATED - previous URL was broken/" "$file"
+        done
+        echo "✅ Broken URLs cleaned - suggest running /pm:sync to recreate proper issues"
+    fi
+    
     if [[ $issues_found -eq 0 ]]; then
-        echo "✅ All files match their GitHub issue numbers"
-        echo "🎉 No file naming issues found!"
+        if [[ $urls_cleaned -eq 0 ]]; then
+            echo "✅ All files have valid GitHub URLs and matching numbers"
+            echo "🎉 No file naming issues found!"
+        fi
         return 0
     fi
     
@@ -293,15 +321,16 @@ run_issue_only_fix() {
     # Apply fixes automatically for --issue mode
     echo "🔧 Fixing file-GitHub number consistency..."
     
-    # CRITICAL: Sort files by number in DESCENDING order to avoid conflicts
-    # If we rename 15.md→17.md before 16.md→18.md, we might overwrite existing files
+    # CRITICAL: Sort files by number in DESCENDING order for existing URLs
+    # This prevents conflicts when renaming files with valid GitHub URLs
+    # Example: 15.md→17.md, 16.md→18.md - do 16→18 first to avoid overwriting
     local sorted_files=()
     for file in "${!inconsistent_files[@]}"; do
         local local_number=$(basename "$file" .md)
         sorted_files+=("$local_number:$file")
     done
     
-    # Sort by number (highest first) to prevent conflicts
+    # Sort by number (highest first) to prevent conflicts with existing URLs
     IFS=$'\n' sorted_files=($(sort -rn -t: -k1 <<<"${sorted_files[*]}"))
     
     for entry in "${sorted_files[@]}"; do
@@ -310,7 +339,7 @@ run_issue_only_fix() {
         local local_number=$(basename "$file" .md)
         local target_file="$(dirname "$file")/$github_number.md"
         
-        echo "  📝 Renaming: $(basename "$file") → $github_number.md (descending order)"
+        echo "  📝 Renaming: $(basename "$file") → $github_number.md (descending order for existing URLs)"
         mv "$file" "$target_file"
         
         # Update epic task lists
@@ -330,7 +359,7 @@ run_issue_only_fix() {
     done
     
     echo ""
-    echo "🎉 Issue Fix Complete - $issues_found file naming issues resolved"
+    echo "🎉 Issue Fix Complete - $issues_found file naming issues + $urls_cleaned broken URLs resolved"
     echo "💡 All task files now match their GitHub issue numbers"
 }
 

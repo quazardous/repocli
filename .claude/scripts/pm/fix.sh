@@ -42,10 +42,11 @@ debug_log() {
     fi
 }
 
-# Check file-GitHub number consistency
+# Check GitHub URL integrity and file-GitHub number consistency
 check_file_github_consistency() {
     local issues_found=0
-    echo -e "${BLUE}🔍 Checking file-GitHub number consistency...${NC}"
+    local urls_cleaned=0
+    echo -e "${BLUE}🔍 Checking GitHub URL integrity and file-GitHub number consistency...${NC}"
     
     local search_pattern=".claude/epics/"
     if [[ -n "$1" ]]; then
@@ -58,23 +59,44 @@ check_file_github_consistency() {
         
         local local_number=$(basename "$file" .md)
         local github_url=$(grep "^github:" "$file" 2>/dev/null | head -1 | cut -d' ' -f2-)
-        local github_number=$(echo "$github_url" | grep -o '[0-9]*$')
         
-        debug_log "Checking $file: local=$local_number, github=$github_number"
+        debug_log "Checking $file: local=$local_number, url=$github_url"
         
-        if [[ -n "$github_number" && "$local_number" != "$github_number" ]]; then
-            echo -e "  ${RED}❌ INCONSISTENCY:${NC} $file (local: #$local_number, GitHub: #$github_number)"
-            echo "     GitHub URL: $github_url"
-            inconsistent_files["$file"]="$github_number"
-            ((issues_found++))
+        # Step 1: URL Validation (skip # TO BE CREATED and empty)
+        if [[ -n "$github_url" && "$github_url" != "# TO BE CREATED" && "$github_url" != "#" ]]; then
+            local github_number=$(echo "$github_url" | grep -o '[0-9]*$')
+            
+            # Test if URL is valid issue (not PR, not 404, not wrong format)
+            if ! gh issue view "$github_number" &>/dev/null 2>&1; then
+                echo -e "  ${RED}🧹 BROKEN URL:${NC} $file has invalid GitHub URL"
+                echo "     URL: $github_url"
+                echo -e "     ${YELLOW}🔧 Cleaning: $(basename "$file") - marking for recreation${NC}"
+                sed -i "s/^github:.*/github: # TO BE CREATED - previous URL was broken/" "$file"
+                ((urls_cleaned++))
+            else
+                # Step 2: File-GitHub number consistency check (only for valid URLs)
+                if [[ "$local_number" != "$github_number" ]]; then
+                    echo -e "  ${RED}❌ INCONSISTENCY:${NC} $file (local: #$local_number, GitHub: #$github_number)"
+                    echo "     GitHub URL: $github_url"
+                    inconsistent_files["$file"]="$github_number"
+                    ((issues_found++))
+                fi
+            fi
         fi
     done
     
-    if [[ $issues_found -eq 0 ]]; then
-        echo -e "  ${GREEN}✅ All files match their GitHub issue numbers${NC}"
+    if [[ $urls_cleaned -gt 0 ]]; then
+        echo -e "  ${GREEN}✅ Broken URLs cleaned:${NC} $urls_cleaned files marked for recreation"
+        echo -e "  ${BLUE}💡 Suggest running /pm:sync to recreate proper GitHub issues${NC}"
     fi
     
-    return $issues_found
+    if [[ $issues_found -eq 0 ]]; then
+        if [[ $urls_cleaned -eq 0 ]]; then
+            echo -e "  ${GREEN}✅ All files have valid GitHub URLs and matching numbers${NC}"
+        fi
+    fi
+    
+    return $((issues_found + urls_cleaned))
 }
 
 # Check missing GitHub URLs
@@ -113,8 +135,9 @@ check_missing_github_urls() {
 fix_file_github_consistency() {
     echo -e "${BLUE}🔧 Fixing file-GitHub number consistency...${NC}"
     
-    # CRITICAL: Sort files by number in DESCENDING order to avoid conflicts
-    # If we rename 15.md→17.md before 16.md→18.md, we might overwrite existing files
+    # CRITICAL: Sort files by number in DESCENDING order for existing URLs
+    # This prevents conflicts when renaming files with valid GitHub URLs
+    # Example: 15.md→17.md, 16.md→18.md - do 16→18 first to avoid overwriting
     local sorted_files=()
     for file in "${!inconsistent_files[@]}"; do
         local local_number=$(basename "$file" .md)
@@ -130,7 +153,7 @@ fix_file_github_consistency() {
         local local_number=$(basename "$file" .md)
         local target_file="$(dirname "$file")/$github_number.md"
         
-        echo -e "  ${YELLOW}📝 Renaming:${NC} $(basename "$file") → $github_number.md (descending order)"
+        echo -e "  ${YELLOW}📝 Renaming:${NC} $(basename "$file") → $github_number.md (descending order for existing URLs)"
         mv "$file" "$target_file"
         
         # Update epic task lists
