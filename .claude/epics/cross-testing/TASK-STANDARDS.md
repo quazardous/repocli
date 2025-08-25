@@ -81,19 +81,14 @@ conflicts_with: []  # GitHub issue numbers that conflict
 - ~~`closed`~~ - Use `completed` instead
 - ~~`wip`~~ - Use `in_progress` instead
 
-### GitHub Label Integration
+### GitHub Issue Status Priority
 
-These statuses should be reflected in GitHub issue labels using the format:
-- `status: open`
-- `status: in_progress` 
-- `status: blocked`
-- `status: completed`
+**PRIMARY**: Status is managed via GitHub issue status field, not labels.
 
-Additional context labels can be added:
-- `blocked: dependencies` - Blocked by other tasks
-- `blocked: external` - Blocked by external factors
-- `priority: high|medium|low`
-- `type: bug|feature|enhancement|docs`
+**FUTURE FEATURE**: GitHub label integration for enhanced workflow automation.
+- Planned: Automated label sync with status changes
+- Planned: Additional context labels (priority, type, area)
+- Planned: Workflow automation via GitHub Actions
 
 ## Status Workflow
 
@@ -125,10 +120,11 @@ any_status → duplicate (terminal)
 - `needs_review` → `in_progress`: Review feedback requires more work
 
 ### GitHub Issue Integration:
-- Update issue labels when status changes
-- Add comments explaining status changes
+- **PRIMARY**: Update issue status field directly
+- Add comments explaining status changes and blocking factors
 - Use milestones for grouping related tasks
 - Reference blocking/dependent issues in comments
+- **FUTURE**: Automated label management and workflow triggers
 
 ## File Naming
 

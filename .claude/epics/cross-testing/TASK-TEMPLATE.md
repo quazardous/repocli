@@ -67,14 +67,9 @@ advanced_command_example
 
 This task [accomplishes/enables/provides] [brief impact statement].
 
-## GitHub Labels
+## Status Management
 
-Recommended labels for this task:
-- `status: [current_status]`
-- `type: [bug|feature|enhancement|docs]`
-- `priority: [high|medium|low]`
-- Additional context labels as needed:
-  - `blocked: dependencies` (if blocked by other tasks)
-  - `blocked: external` (if blocked by external factors)
-  - `needs: review` (if awaiting review)
-  - `area: [component_name]` (for component-specific tasks)
+**PRIMARY**: Manage task status via GitHub issue status field using the values defined in TASK-STANDARDS.md
+
+**CURRENT**: Manual status updates in frontmatter and GitHub issue
+**FUTURE**: Automated label integration and workflow triggers (planned feature)
