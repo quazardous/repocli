@@ -1,0 +1,32 @@
+{
+  "id": 987654321,
+  "iid": 42,
+  "title": "Bug: Authentication fails with custom instance",
+  "description": "When using a custom GitLab instance, authentication fails unexpectedly.\n\nSteps to reproduce:\n1. Configure custom instance\n2. Run auth login\n3. Authentication fails",
+  "state": "opened",
+  "web_url": "https://gitlab.example.com/user/repo/-/issues/42",
+  "created_at": "2023-06-15T10:30:00.000Z",
+  "updated_at": "2023-06-15T14:20:00.000Z",
+  "author": {
+    "username": "testuser",
+    "id": 555555,
+    "web_url": "https://gitlab.example.com/testuser"
+  },
+  "assignees": [
+    {
+      "username": "maintainer1",
+      "id": 222222
+    }
+  ],
+  "labels": [
+    {
+      "name": "bug",
+      "color": "#d73a4a"
+    },
+    {
+      "name": "priority-high",
+      "color": "#ff6b6b"
+    }
+  ],
+  "user_notes_count": 3
+}

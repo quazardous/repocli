@@ -1,0 +1,25 @@
+{
+  "id": 456789123,
+  "name": "repocli",
+  "full_name": "user/repocli",
+  "html_url": "https://github.com/user/repocli",
+  "description": "Universal CLI for Git hosting providers",
+  "private": false,
+  "fork": false,
+  "created_at": "2023-01-15T08:00:00Z",
+  "updated_at": "2023-06-15T16:45:00Z",
+  "pushed_at": "2023-06-15T16:30:00Z",
+  "clone_url": "https://github.com/user/repocli.git",
+  "ssh_url": "git@github.com:user/repocli.git",
+  "default_branch": "main",
+  "language": "Shell",
+  "stargazers_count": 150,
+  "watchers_count": 25,
+  "forks_count": 12,
+  "open_issues_count": 8,
+  "owner": {
+    "login": "user",
+    "id": 123123123,
+    "html_url": "https://github.com/user"
+  }
+}
