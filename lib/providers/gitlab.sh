@@ -1,6 +1,7 @@
 #!/bin/bash
 # GitLab Provider for REPOCLI
 # Maps GitHub CLI (gh) commands to GitLab CLI (glab) equivalents
+# Implements the standardized rca_ functions defined in GitHub provider
 
 # Execute GitLab commands with GitHub CLI compatibility
 gitlab_execute() {
@@ -22,64 +23,28 @@ gitlab_execute() {
     local cmd="$1"
     shift
     
+    # Query each rca_ function to see if it can handle this command
+    # First function that says "yes" wins (automatic discovery)
+    for func in $(declare -F | grep -o 'rca_[a-zA-Z_]*' | sort); do
+        if "$func" --repocli-can-handle "$cmd" "$@" 2>/dev/null; then
+            debug_log "GitLab: Routing to $func for command: $cmd $*"
+            "$func" "$cmd" "$@"
+            return
+        fi
+    done
+    
+    # Handle special cases that don't fit the rca_ pattern
     case "$cmd" in
-        # Authentication commands
-        "auth")
-            case "$1" in
-                "status")
-                    exec glab auth status
-                    ;;
-                "login")
-                    exec glab auth login
-                    ;;
-                *)
-                    exec glab auth "$@"
-                    ;;
-            esac
+        # Version command
+        "--version")
+            exec glab version
             ;;
-            
-        # Issue operations
-        "issue")
-            gitlab_issue_command "$@"
-            ;;
-            
-        # Repository operations
-        "repo")
-            gitlab_repo_command "$@"
-            ;;
-            
-        # Label operations
-        "label")
-            gitlab_label_command "$@"
-            ;;
-            
         # Sub-issue operations (not supported)
         "sub-issue")
             echo "Error: sub-issue operations not directly supported in GitLab" >&2
             echo "Use 'repocli issue create' with issue relationships instead" >&2
             exit 1
             ;;
-            
-        # Extension operations (not needed)
-        "extension")
-            case "$1" in
-                "list")
-                    echo "GitLab CLI doesn't use extensions" >&2
-                    ;;
-                "install")
-                    echo "Extensions not needed for GitLab CLI" >&2
-                    ;;
-                *)
-                    echo "Extension command not supported for GitLab" >&2
-                    ;;
-            esac
-            ;;
-            
-        # Version command
-        "--version")
-            exec glab version
-            ;;
-            
         *)
             # Pass through unknown commands to glab
             debug_log "Passing through unknown command to glab: $cmd $*"
@@ -88,64 +53,59 @@ gitlab_execute() {
     esac
 }
 
-# Handle issue commands
-gitlab_issue_command() {
-    local subcmd="$1"
-    shift
+# Authentication commands with standardized rca_ naming
+# Implements GitHub CLI rca_auth_status() for GitLab
+rca_auth_status() {
+    # Self-registration: handle --repocli-can-handle query
+    if [[ "$1" == "--repocli-can-handle" ]]; then
+        shift
+        [[ "$1 $2" == "auth status" ]] && return 0 || return 1
+    fi
     
-    case "$subcmd" in
-        "view")
-            gitlab_issue_view "$@"
-            ;;
-        "create")
-            gitlab_issue_create "$@"
-            ;;
-        "edit")
-            gitlab_issue_edit "$@"
-            ;;
-        "comment")
-            gitlab_issue_comment "$@"
-            ;;
-        "close")
-            gitlab_issue_close "$@"
-            ;;
-        "reopen")
-            local issue_num="$1"
-            exec glab issue reopen "$issue_num"
-            ;;
-        "list")
-            gitlab_issue_list "$@"
-            ;;
-        *)
-            echo "Error: Unsupported issue command '$subcmd' for GitLab" >&2
-            echo "Supported commands: view, create, edit, comment, close, reopen, list" >&2
-            exit 1
-            ;;
-    esac
+    debug_log "GitLab: Checking authentication status"
+    exec glab auth status
 }
 
-# Handle repo commands
-gitlab_repo_command() {
-    case "$1" in
-        "view")
-            shift
-            if [[ "$*" == *"--json nameWithOwner"* ]]; then
-                # Get repository identifier
-                glab repo view --output json | jq -r '.path_with_namespace'
-            else
-                exec glab repo view "$@"
-            fi
-            ;;
-        *)
-            echo "Error: Unsupported repo command '$1' for GitLab" >&2
-            echo "Supported commands: view" >&2
-            exit 1
-            ;;
-    esac
+# Implements GitHub CLI rca_auth_login() for GitLab
+rca_auth_login() {
+    # Self-registration: handle --repocli-can-handle query
+    if [[ "$1" == "--repocli-can-handle" ]]; then
+        shift
+        [[ $# -ge 2 && "$1 $2" == "auth login" ]] && return 0 || return 1
+    fi
+    
+    debug_log "GitLab: Starting authentication login"
+    exec glab auth login "$@"
 }
 
-# GitLab issue view with gh compatibility
-gitlab_issue_view() {
+# Repository operations with standardized rca_ naming
+# Implements GitHub CLI rca_repo_view() for GitLab
+rca_repo_view() {
+    # Self-registration: handle --repocli-can-handle query
+    if [[ "$1" == "--repocli-can-handle" ]]; then
+        shift
+        [[ "$1 $2" == "repo view" ]] && return 0 || return 1
+    fi
+    
+    debug_log "GitLab: Viewing repository"
+    
+    if [[ "$*" == *"--json nameWithOwner"* ]]; then
+        # Get repository identifier - map GitHub field to GitLab equivalent
+        glab repo view --output json | jq -r '.path_with_namespace'
+    else
+        exec glab repo view "$@"
+    fi
+}
+
+# Issue management commands with standardized rca_ naming
+# Implements GitHub CLI rca_issue_view() for GitLab
+rca_issue_view() {
+    # Self-registration: handle --repocli-can-handle query
+    if [[ "$1" == "--repocli-can-handle" ]]; then
+        shift
+        [[ "$1 $2" == "issue view" ]] && return 0 || return 1
+    fi
+    
     local issue_num="$1"
     shift
     
@@ -203,8 +163,13 @@ gitlab_issue_view() {
     fi
 }
 
-# GitLab issue create with gh compatibility
-gitlab_issue_create() {
+rca_issue_create() {
+    # Self-registration: handle --repocli-can-handle query
+    if [[ "$1" == "--repocli-can-handle" ]]; then
+        shift
+        [[ "$1 $2" == "issue create" ]] && return 0 || return 1
+    fi
+    
     local title=""
     local body_file=""
     local labels=""
@@ -270,8 +235,7 @@ gitlab_issue_create() {
     eval "$glab_cmd" | grep -o 'https://[^/]*/[^/]*/[^/]*/-/issues/[0-9]*' | sed 's|.*/||'
 }
 
-# GitLab issue edit with gh compatibility
-gitlab_issue_edit() {
+rca_issue_edit() {
     local issue_num="$1"
     shift
     
@@ -316,8 +280,7 @@ gitlab_issue_edit() {
     eval "$glab_cmd"
 }
 
-# GitLab issue comment with gh compatibility
-gitlab_issue_comment() {
+rca_issue_comment() {
     local issue_num="$1"
     shift
     
@@ -343,8 +306,7 @@ gitlab_issue_comment() {
     fi
 }
 
-# GitLab issue close with gh compatibility
-gitlab_issue_close() {
+rca_issue_close() {
     local issue_num="$1"
     shift
     
@@ -367,8 +329,25 @@ gitlab_issue_close() {
     glab issue close "$issue_num"
 }
 
-# GitLab issue list with gh compatibility
-gitlab_issue_list() {
+rca_issue_reopen() {
+    # Self-registration: handle --repocli-can-handle query
+    if [[ "$1" == "--repocli-can-handle" ]]; then
+        shift
+        [[ "$1 $2" == "issue reopen" ]] && return 0 || return 1
+    fi
+    
+    local issue_num="$1"
+    debug_log "GitLab: Reopening issue $issue_num"
+    exec glab issue reopen "$issue_num"
+}
+
+rca_issue_list() {
+    # Self-registration: handle --repocli-can-handle query
+    if [[ "$1" == "--repocli-can-handle" ]]; then
+        shift
+        [[ "$1 $2" == "issue list" ]] && return 0 || return 1
+    fi
+    
     local labels=""
     local limit=""
     local json_fields=""
@@ -406,39 +385,19 @@ gitlab_issue_list() {
     eval "$glab_cmd"
 }
 
-# Handle label commands with gh to glab translation
-gitlab_label_command() {
-    local subcmd="$1"
-    shift
-    
-    case "$subcmd" in
-        "create")
-            gitlab_label_create "$@"
-            ;;
-        "list")
-            gitlab_label_list "$@"
-            ;;
-        "edit")
-            gitlab_label_edit "$@"
-            ;;
-        "delete")
-            gitlab_label_delete "$@"
-            ;;
-        "clone")
-            echo "Error: 'label clone' not supported in GitLab" >&2
-            echo "Use 'repocli label list --json' and 'repocli label create' instead" >&2
-            exit 1
-            ;;
-        *)
-            echo "Error: Unsupported label command '$subcmd' for GitLab" >&2
-            echo "Supported commands: create, list, edit, delete" >&2
-            exit 1
-            ;;
-    esac
+# Label management commands with standardized rca_ naming
+# Extension system commands (not applicable for GitLab)
+rca_extension_list() {
+    debug_log "GitLab: Extensions not applicable"
+    echo "GitLab CLI doesn't use extensions" >&2
 }
 
-# GitLab label create with gh compatibility
-gitlab_label_create() {
+rca_extension_install() {
+    debug_log "GitLab: Extensions not applicable"
+    echo "Extensions not needed for GitLab CLI" >&2
+}
+
+rca_label_create() {
     local name=""
     local description=""
     local color=""
@@ -491,7 +450,7 @@ gitlab_label_create() {
     if [[ "$force" == "true" ]]; then
         if glab label list --output json | jq -e ".[] | select(.name == \"$name\")" > /dev/null 2>&1; then
             # Label exists, use edit instead
-            gitlab_label_edit "$name" ${description:+--description "$description"} ${color:+--color "$color"}
+            rca_label_edit "$name" ${description:+--description "$description"} ${color:+--color "$color"}
             return
         fi
     fi
@@ -499,8 +458,7 @@ gitlab_label_create() {
     eval "$glab_cmd"
 }
 
-# GitLab label list with gh compatibility
-gitlab_label_list() {
+rca_label_list() {
     local json_fields=""
     local query=""
     local limit=""
@@ -569,8 +527,7 @@ gitlab_label_list() {
     fi
 }
 
-# GitLab label edit with gh compatibility
-gitlab_label_edit() {
+rca_label_edit() {
     local label_name="$1"
     shift
     
@@ -627,11 +584,10 @@ gitlab_label_edit() {
     
     # Delete old label and create new one
     glab label delete "$label_name"
-    gitlab_label_create "$new_name" ${description:+--description "$description"} ${color:+--color "$color"}
+    rca_label_create "$new_name" ${description:+--description "$description"} ${color:+--color "$color"}
 }
 
-# GitLab label delete with gh compatibility
-gitlab_label_delete() {
+rca_label_delete() {
     local label_name="$1"
     local yes=false
     
@@ -655,4 +611,11 @@ gitlab_label_delete() {
     
     # GitLab CLI doesn't prompt by default, so --yes doesn't change behavior
     exec glab label delete "$label_name"
+}
+
+rca_label_clone() {
+    debug_log "GitLab: Label clone not supported"
+    echo "Error: 'label clone' not supported in GitLab" >&2
+    echo "Use 'repocli label list --json' and 'repocli label create' instead" >&2
+    exit 1
 }
