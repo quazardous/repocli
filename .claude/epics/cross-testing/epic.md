@@ -1,0 +1,167 @@
+---
+name: cross-testing
+status: backlog
+created: 2025-08-25T08:57:47Z
+progress: 0%
+prd: .claude/prds/cross-testing.md
+github: https://github.com/quazardous/repocli/issues/1
+---
+
+# Epic: Cross-Testing
+
+## Overview
+
+Implement a cross-provider testing framework that validates REPOCLI command compatibility between GitHub CLI (`gh`) and GitLab CLI (`glab`). The system uses subdirectory isolation to test identical commands across providers, focusing on GitLab's complex parameter translation while leveraging GitHub's 1:1 passthrough as the baseline. Tests execute read-only operations on public repositories with JSON output comparison for semantic equivalence.
+
+## Architecture Decisions
+
+- **Subdirectory isolation** over Docker for simplicity and speed
+- **Existing test framework extension** - integrate with `tests/run-tests.sh` rather than separate system
+- **JSON semantic comparison** using `jq` for field mapping validation
+- **Public repository approach** to avoid authentication complexity
+- **Bash-based implementation** to match existing REPOCLI codebase patterns
+- **Provider-specific test configuration** using temporary `repocli.conf` files
+
+## Technical Approach
+
+### Testing Framework Components
+
+**Test Orchestration**
+- Extend existing `tests/run-tests.sh` with cross-provider test suite
+- Create isolated test environments in `tests/cross-testing/` subdirectories
+- Manage temporary configurations without affecting user settings
+- Execute tests in parallel where possible (different providers, different commands)
+
+**Provider Configuration Management**
+- Generate temporary `repocli.conf` files for each test scenario
+- Support environment variable override for custom GitLab instances
+- Clean up test configurations after execution
+- Validate CLI tool availability before test execution
+
+**Output Comparison Engine**
+- JSON output normalization and comparison using `jq`
+- Semantic equivalence validation (field presence, data type consistency)
+- Error message pattern matching for failure scenarios
+- Rate limit and network error handling
+
+### Infrastructure
+
+**Test Environment Structure**
+```bash
+tests/cross-testing/
+├── run-cross-tests.sh           # Main test orchestrator
+├── lib/                         # Shared test utilities
+│   ├── test-isolation.sh        # Environment isolation functions
+│   ├── output-comparison.sh     # JSON comparison utilities
+│   └── provider-config.sh       # Configuration management
+├── github-test/                 # GitHub provider test environment
+│   └── repocli.conf            # provider=github
+├── gitlab-test/                # GitLab.com test environment  
+│   └── repocli.conf            # provider=gitlab, instance=https://gitlab.com
+└── gitlab-custom-test/         # Custom GitLab instance test environment
+    └── repocli.conf            # provider=gitlab, instance=$GITLAB_TEST_INSTANCE
+```
+
+**Integration Points**
+- Hooks into existing `make test` command
+- Uses existing REPOCLI library functions (`lib/config.sh`, `lib/providers/*.sh`)
+- Leverages current debug logging system (`debug_log()`)
+- Maintains compatibility with CI/CD pipeline structure
+
+## Implementation Strategy
+
+**Phase 1: Core Framework**
+- Implement test isolation and configuration management
+- Create basic command execution and output capture
+- Add JSON comparison utilities using existing `jq` dependency
+
+**Phase 2: Command Coverage**
+- Implement issue listing and viewing tests
+- Add authentication status validation
+- Create error handling test scenarios
+
+**Phase 3: Integration & Optimization**
+- Integrate with existing test suite
+- Add parallel execution capabilities
+- Implement custom GitLab instance support
+
+## Task Breakdown Preview
+
+High-level task categories that will be created:
+- [ ] **Test Framework Foundation**: Create test orchestration script and directory structure
+- [ ] **Environment Isolation**: Implement configuration management and cleanup utilities  
+- [ ] **JSON Output Comparison**: Build semantic equivalence validation using jq
+- [ ] **GitHub Provider Tests**: Minimal validation tests for 1:1 passthrough
+- [ ] **GitLab Provider Tests**: Comprehensive parameter translation and command mapping tests
+- [ ] **Error Handling Tests**: Network failures, invalid repos, rate limiting scenarios
+- [ ] **Integration with Existing Test Suite**: Extend `make test` and `tests/run-tests.sh`
+- [ ] **Custom GitLab Instance Support**: Environment variable configuration and validation
+- [ ] **Performance Optimization**: Parallel execution and test suite timing optimization
+
+## Dependencies
+
+**External Dependencies**
+- GitHub CLI (`gh`) - already required by REPOCLI
+- GitLab CLI (`glab`) - already required by REPOCLI
+- `jq` tool for JSON processing - already used in GitLab provider
+- Public test repositories: `microsoft/vscode` (GitHub), `gitlab-org/gitlab` (GitLab)
+
+**Internal Dependencies**
+- Existing configuration system (`lib/config.sh`)
+- GitLab provider implementation (`lib/providers/gitlab.sh`)
+- Current test framework (`tests/run-tests.sh`)
+- Debug logging utilities
+
+**Environment Dependencies**
+- Internet connectivity for API access
+- No authentication tokens required (read-only public repos)
+- Optional: Custom GitLab instance URL via `GITLAB_TEST_INSTANCE` environment variable
+
+## Success Criteria (Technical)
+
+**Performance Benchmarks**
+- Full test suite completion under 2 minutes
+- Individual command tests under 10 seconds
+- Parallel execution reduces total time by 50%
+
+**Quality Gates**
+- 100% test coverage of core commands (issue list, issue view, auth status)
+- Zero false positives in JSON output comparison
+- All GitLab parameter translations validated against GitHub baseline
+- Error handling covers network failures, invalid repos, rate limits
+
+**Acceptance Criteria**
+- Integration with `make test` command
+- CI/CD pipeline compatibility maintained
+- Custom GitLab instance configuration working
+- Test reliability > 95% on repeated runs
+
+## Tasks Created
+- [ ] #10 - Performance Optimization and Parallel Execution (parallel: false)
+- [ ] #2 - Create Test Framework Foundation (parallel: true)
+- [ ] #3 - Implement Environment Isolation Utilities (parallel: false)
+- [ ] #4 - Build JSON Output Comparison Engine (parallel: true)
+- [ ] #5 - Implement GitHub Provider Tests (parallel: true)
+- [ ] #6 - Implement GitLab Provider Tests (parallel: false)
+- [ ] #7 - Implement Error Handling and Edge Case Tests (parallel: true)
+- [ ] #8 - Integrate with Existing Test Suite (parallel: false)
+- [ ] #9 - Add Custom GitLab Instance Support (parallel: true)
+
+Total tasks: 9
+Parallel tasks: 5
+Sequential tasks: 4
+## Estimated Effort
+
+**Overall Timeline**: 3-5 days implementation
+**Critical Path**: Test isolation framework → Command testing → Integration
+
+**Resource Requirements**
+- Single developer with bash scripting experience
+- Access to public GitHub and GitLab repositories
+- Optional: Custom GitLab instance for comprehensive testing
+
+**Effort Breakdown**
+- Framework foundation: 1 day
+- Command testing implementation: 2 days  
+- Integration and optimization: 1-2 days
+- Documentation and cleanup: 0.5 day

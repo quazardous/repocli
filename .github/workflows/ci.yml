@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        bash-version: ['4.4', '5.0', '5.1', '5.2']
+        
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Bash ${{ matrix.bash-version }}
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y software-properties-common
+        # Install specific bash version if needed
+        
+    - name: Install dependencies
+      run: |
+        if [ "$RUNNER_OS" == "Linux" ]; then
+          sudo apt-get update
+          sudo apt-get install -y jq shellcheck
+        elif [ "$RUNNER_OS" == "macOS" ]; then
+          brew install jq shellcheck
+        fi
+        
+    - name: Install provider CLIs
+      run: |
+        if [ "$RUNNER_OS" == "Linux" ]; then
+          # Install gh
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+          sudo apt update
+          sudo apt install gh
+          
+          # Install glab
+          curl -s https://api.github.com/repos/profclems/glab/releases/latest | grep "browser_download_url.*linux_amd64.tar.gz" | cut -d : -f 2,3 | tr -d \" | wget -qi -
+          tar -xzf glab_*_linux_amd64.tar.gz
+          sudo mv bin/glab /usr/local/bin/
+          
+        elif [ "$RUNNER_OS" == "macOS" ]; then
+          brew install gh glab
+        fi
+        
+    - name: Lint shell scripts
+      run: make lint
+      
+    - name: Run tests
+      run: make test
+      
+    - name: Test installation
+      run: |
+        make install PREFIX=/tmp/repocli-test
+        /tmp/repocli-test/bin/repocli --version
+        /tmp/repocli-test/bin/repocli --help
+        
+    - name: Test development setup
+      run: |
+        make dev-setup
+        ./repocli --version
+        ./repocli --help
+        
+  homebrew-test:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Test Homebrew formula syntax
+      run: |
+        brew install --formula ./Formula/repocli.rb --only-dependencies
+        brew style --formula ./Formula/repocli.rb
+        brew audit --strict --formula ./Formula/repocli.rb
+        
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Run ShellCheck
+      uses: ludeeus/action-shellcheck@master
+      with:
+        scandir: '.'
+        format: gcc
+        severity: warning
+      env:
+        SHELLCHECK_OPTS: -e SC1091 -e SC2034

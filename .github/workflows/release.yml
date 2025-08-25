@@ -1,0 +1,84 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y jq shellcheck
+        
+    - name: Run tests
+      run: make test
+      
+    - name: Create distribution tarball
+      run: make dist
+      
+    - name: Extract version
+      id: version
+      run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+      
+    - name: Create Release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: REPOCLI v${{ steps.version.outputs.version }}
+        body: |
+          ## Changes in v${{ steps.version.outputs.version }}
+          
+          See [CHANGELOG.md](https://github.com/quazardous/repocli/blob/main/CHANGELOG.md) for detailed changes.
+          
+          ## Installation
+          
+          ### Homebrew
+          ```bash
+          brew install repocli
+          ```
+          
+          ### Quick Install
+          ```bash
+          curl -fsSL https://raw.githubusercontent.com/quazardous/repocli/main/install.sh | bash
+          ```
+          
+          ### Manual Install
+          ```bash
+          wget https://github.com/quazardous/repocli/releases/download/v${{ steps.version.outputs.version }}/repocli-${{ steps.version.outputs.version }}.tar.gz
+          tar xzf repocli-${{ steps.version.outputs.version }}.tar.gz
+          cd repocli-${{ steps.version.outputs.version }}
+          sudo make install
+          ```
+        draft: false
+        prerelease: ${{ contains(steps.version.outputs.version, '-') }}
+        
+    - name: Upload tarball
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./repocli-${{ steps.version.outputs.version }}.tar.gz
+        asset_name: repocli-${{ steps.version.outputs.version }}.tar.gz
+        asset_content_type: application/gzip
+        
+  update-homebrew:
+    needs: create-release
+    runs-on: ubuntu-latest
+    steps:
+    - name: Update Homebrew formula
+      run: |
+        echo "TODO: Implement Homebrew formula update"
+        # This would typically involve:
+        # 1. Calculate SHA256 of the release tarball
+        # 2. Fork homebrew-core or create homebrew-tap
+        # 3. Update formula with new version and SHA
+        # 4. Submit PR to homebrew-core

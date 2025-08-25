@@ -1,23 +1,60 @@
 # Build artifacts
 *.tar.gz
 *.zip
+dist/
+build/
 
 # Temporary files
 *.tmp
 *~
+*.backup
 
 # Test artifacts
 test-*.conf
 repocli.conf
+coverage/
+.coverage
 
-# macOS
+# Runtime files
+*.pid
+*.log
+
+# OS generated files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
 
 # Editor files
 .vscode/
 .idea/
 *.swp
 *.swo
+*.sublime-*
+.atom/
+
+# Shell history
+.bash_history
+.zsh_history
+
+# Package manager
+node_modules/
+vendor/
+
+# Development environment
+.env
+.env.local
 
 # Homebrew test artifacts
 .brew_test/
+
+# Generated documentation
+docs/_build/
+*.pdf
+
+# Cache directories
+.cache/
+*.cache
