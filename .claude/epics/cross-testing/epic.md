@@ -2,7 +2,8 @@
 name: cross-testing
 status: backlog
 created: 2025-08-25T08:57:47Z
-updated: 2025-08-25T12:08:46Z
+updated: 2025-08-25T12:13:57Z
+last_sync: 2025-08-25T12:16:31Z
 progress: 0%
 prd: .claude/prds/cross-testing.md
 github: https://github.com/quazardous/repocli/issues/1
@@ -97,6 +98,7 @@ High-level task categories that will be created:
 - [ ] **Test Framework Foundation**: Create test orchestration script and directory structure
 - [ ] **Environment Isolation**: Implement configuration management and cleanup utilities  
 - [ ] **JSON Output Comparison**: Build semantic equivalence validation using jq
+- [ ] **Test Configuration Setup**: Implement `/tests:init` command for interactive GitLab repository setup
 - [ ] **GitHub Provider Tests**: Minimal validation tests for 1:1 passthrough
 - [ ] **GitLab Provider Tests**: Comprehensive parameter translation and command mapping tests
 - [ ] **Error Handling Tests**: Network failures, invalid repos, rate limiting scenarios
@@ -138,6 +140,23 @@ gitlab_test_user=your-username
 
 ⚠️ **SECURITY**: The `.tests.conf` file must be excluded from version control (added to `.gitignore`) as it contains references to private repositories. A `.tests.conf.example` template file will be versioned for user guidance.
 
+**Interactive Test Configuration (`/tests:init`)**
+A dedicated command will handle test configuration setup:
+```bash
+/tests:init
+```
+
+This command will:
+1. Check if `.tests.conf` already exists (warn before overwriting)
+2. Interactively prompt for:
+   - GitLab instance URL (default: https://gitlab.com)
+   - Private GitLab repository (format: username/repository)
+   - Optional test issue number for validation
+   - Optional test username
+3. Validate repository access (test read permissions)
+4. Create `.tests.conf` with proper format
+5. Update `.gitignore` to exclude `.tests.conf` if not already present
+
 ## Success Criteria (Technical)
 
 **Performance Benchmarks**
@@ -159,6 +178,7 @@ gitlab_test_user=your-username
 
 ## Tasks Created
 - [ ] #10 - Performance Optimization and Parallel Execution (parallel: false)
+- [ ] #14 - Implement Test Configuration Setup Command (parallel: true)
 - [ ] #2 - Create Test Framework Foundation (parallel: true)
 - [ ] #3 - Implement Environment Isolation Utilities (parallel: false)
 - [ ] #4 - Build JSON Output Comparison Engine (parallel: true)
@@ -168,8 +188,8 @@ gitlab_test_user=your-username
 - [ ] #8 - Integrate with Existing Test Suite (parallel: false)
 - [ ] #9 - Add Custom GitLab Instance Support (parallel: true)
 
-Total tasks: 9
-Parallel tasks: 5
+Total tasks: 10
+Parallel tasks: 6
 Sequential tasks: 4
 ## Estimated Effort
 

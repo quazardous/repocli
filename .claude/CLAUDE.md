@@ -63,3 +63,30 @@ Using the test-runner agent ensures:
 - NO OVER-ENGINEERING - Don't add unnecessary abstractions, factory patterns, or middleware when simple functions would work. Don't think "enterprise" when you need "working"
 - NO MIXED CONCERNS - Don't put validation logic inside API handlers, database queries inside UI components, etc. instead of proper separation
 - NO RESOURCE LEAKS - Don't forget to close database connections, clear timeouts, remove event listeners, or clean up file handles
+
+## PROJECT MANAGEMENT RULES:
+
+### Task Numbering and File Naming
+- **MANDATORY FILE-GITHUB CONSISTENCY**: Task file names MUST match GitHub issue numbers exactly
+- **NEVER create tasks with assumed numbers**: Always check GitHub issue numbers after creation
+- **IMMEDIATE RENAME REQUIRED**: When GitHub assigns different issue number, immediately rename local file to match
+- **Epic task lists MUST use actual GitHub issue numbers**: Never reference non-existent issue numbers
+
+**Examples:**
+- ✅ CORRECT: File `.claude/epics/epic-name/14.md` for GitHub issue #14
+- ❌ WRONG: File `.claude/epics/epic-name/11.md` for GitHub issue #14
+- ✅ CORRECT: Epic references "- [ ] #14 - Task Name" 
+- ❌ WRONG: Epic references "- [ ] #11 - Task Name" when GitHub issue is #14
+
+**Process:**
+1. Create task file with sequential number (e.g., `11.md`)
+2. Create GitHub issue from file (`gh issue create --body-file 11.md`)  
+3. GitHub assigns actual number (e.g., #14)
+4. **IMMEDIATELY** rename file (`mv 11.md 14.md`)
+5. **IMMEDIATELY** update file frontmatter (`github: .../issues/14`)
+6. **IMMEDIATELY** update epic task list to reference correct number (#14)
+
+### Sync Operations
+- **ALWAYS maintain file-GitHub number consistency** during sync operations
+- **DETECT and FIX naming mismatches** during `/pm:sync`
+- **UPDATE epic task lists** when issue numbers change
