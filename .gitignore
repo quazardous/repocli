@@ -60,4 +60,4 @@ docs/_build/
 *.cache
 
 # Claude Code
-.claude/
+#.claude/
