@@ -184,11 +184,11 @@ This command will:
 - [x] #2 - Create Test Framework Foundation (parallel: true) ✅ COMPLETED
 - [x] #3 - Implement Environment Isolation Utilities (parallel: false) ✅ COMPLETED
 - [x] #4 - Build JSON Output Comparison Engine (parallel: true) ✅ COMPLETED
-- [ ] #5 - Implement GitHub Provider Tests (depends on #18) (parallel: true)
-- [ ] #6 - Implement GitLab Provider Tests (depends on #18) (parallel: false)
+- [ ] #5 - Implement GitHub Provider Tests (depends on #22) (parallel: true)
+- [ ] #6 - Implement GitLab Provider Tests (depends on #22) (parallel: false)
 - [ ] #7 - Implement Error Handling and Edge Case Tests (depends on #18) (parallel: true)
 - [ ] #8 - Integrate with Existing Test Suite (depends on #18) (parallel: false)
-- [ ] #9 - Add Custom GitLab Instance Support (depends on #18) (parallel: true)
+- [x] #9 - Add Custom GitLab Instance Support (depends on #18) (parallel: true) ✅ COMPLETED
 - [ ] #19 - Add support for tags/labels in issue creation and listing commands (depends on #18) (parallel: true)
 - [ ] #20 - Add support for parent/child issue relationships (depends on #18) (parallel: true)
 - [ ] #21 - Add comprehensive tests for issue close/reopen operations (depends on #18) (parallel: true)
@@ -199,7 +199,7 @@ This command will:
 - [x] #26 - Standardize provider documentation with source of truth approach (depends on []) (parallel: true) ✅ COMPLETED
 
 Total tasks: 18
-Completed tasks: 6
+Completed tasks: 7
 Parallel tasks: 13
 Sequential tasks: 5
 ## Estimated Effort
