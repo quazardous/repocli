@@ -79,14 +79,74 @@ Using the test-runner agent ensures:
 - ❌ WRONG: Epic references "- [ ] #11 - Task Name" when GitHub issue is #14
 
 **Process:**
-1. Create task file with sequential number (e.g., `11.md`)
+1. Create task file with sequential number (e.g., `11.md`) with `github: # TO BE CREATED`
 2. Create GitHub issue from file (`gh issue create --body-file 11.md`)  
 3. GitHub assigns actual number (e.g., #14)
-4. **IMMEDIATELY** rename file (`mv 11.md 14.md`)
-5. **IMMEDIATELY** update file frontmatter (`github: .../issues/14`)
-6. **IMMEDIATELY** update epic task list to reference correct number (#14)
+4. **IMMEDIATELY** extract GitHub issue number from URL
+5. **SYSTEMATICALLY** check if file name matches GitHub issue number
+6. **IMMEDIATELY** rename file if needed (`mv 11.md 14.md`)
+7. **IMMEDIATELY** update file frontmatter (`github: .../issues/14`)
+8. **IMMEDIATELY** update epic task list to reference correct number (#14)
+
+### GitHub URL Assignment Rules
+- **NEVER pre-fill GitHub URLs for non-existent issues**
+- **USE `github: # TO BE CREATED` for new tasks**
+- **ONLY add actual GitHub URL after issue creation**
+- **PHANTOM URLS cause --fix flag confusion and sync issues**
+
+**✅ CORRECT:**
+```yaml
+github: # TO BE CREATED - issue not yet on GitHub
+```
+
+**❌ INCORRECT:**
+```yaml
+github: https://github.com/owner/repo/issues/27  # Issue doesn't exist yet!
+```
 
 ### Sync Operations
 - **ALWAYS maintain file-GitHub number consistency** during sync operations
+- **SYSTEMATICALLY check file names after every GitHub URL assignment**
+- **AUTOMATIC verification: file name MUST match GitHub issue number**
 - **DETECT and FIX naming mismatches** during `/pm:sync`
 - **UPDATE epic task lists** when issue numbers change
+- **--fix flag is ONLY for existing issues with file naming problems**
+- **--fix flag does NOT work on phantom GitHub URLs**
+
+### Critical Verification Algorithm
+**MANDATORY after every GitHub issue creation:**
+```bash
+# STEP 1: Validate GitHub URL exists and is valid issue
+github_url=$(grep "^github:" file.md | cut -d' ' -f2-)
+local_number=$(basename file.md .md)
+
+if [[ -n "$github_url" && "$github_url" != "# TO BE CREATED" ]]; then
+    github_number=$(echo "$github_url" | grep -o '[0-9]*$')
+    
+    # Test URL is valid issue (not PR, not 404)
+    if ! gh issue view "$github_number" &>/dev/null; then
+        echo "❌ BROKEN URL detected in $local_number.md"
+        sed -i "s/^github:.*/github: # TO BE CREATED - previous URL was broken/" file.md
+        echo "✅ Cleaned. Run /pm:sync to recreate proper GitHub issue."
+        return 0
+    fi
+    
+    # STEP 2: File-GitHub number consistency check
+    if [[ "$local_number" != "$github_number" ]]; then
+        echo "🚨 CRITICAL: File name mismatch detected!"
+        echo "   File: $local_number.md"  
+        echo "   GitHub: #$github_number"
+        echo "   IMMEDIATE ACTION REQUIRED"
+        # Auto-fix MUST happen immediately
+        mv "$local_number.md" "$github_number.md"
+        # Update all references...
+    fi
+fi
+```
+
+### PM Fix Enhanced Requirements
+**`/pm:fix --issue` MUST also validate URL integrity:**
+- **Detect broken URLs**: PR links, 404s, wrong repos
+- **Clean immediately**: Replace with `# TO BE CREATED`
+- **Simple approach**: Suggest `/pm:sync` rather than complex auto-recreation
+- **Handle PR sequence breaks**: Common case where PRs disrupt issue numbering
