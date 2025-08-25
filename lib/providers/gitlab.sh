@@ -48,6 +48,11 @@ gitlab_execute() {
             gitlab_repo_command "$@"
             ;;
             
+        # Label operations
+        "label")
+            gitlab_label_command "$@"
+            ;;
+            
         # Sub-issue operations (not supported)
         "sub-issue")
             echo "Error: sub-issue operations not directly supported in GitLab" >&2
@@ -399,4 +404,255 @@ gitlab_issue_list() {
     fi
     
     eval "$glab_cmd"
+}
+
+# Handle label commands with gh to glab translation
+gitlab_label_command() {
+    local subcmd="$1"
+    shift
+    
+    case "$subcmd" in
+        "create")
+            gitlab_label_create "$@"
+            ;;
+        "list")
+            gitlab_label_list "$@"
+            ;;
+        "edit")
+            gitlab_label_edit "$@"
+            ;;
+        "delete")
+            gitlab_label_delete "$@"
+            ;;
+        "clone")
+            echo "Error: 'label clone' not supported in GitLab" >&2
+            echo "Use 'repocli label list --json' and 'repocli label create' instead" >&2
+            exit 1
+            ;;
+        *)
+            echo "Error: Unsupported label command '$subcmd' for GitLab" >&2
+            echo "Supported commands: create, list, edit, delete" >&2
+            exit 1
+            ;;
+    esac
+}
+
+# GitLab label create with gh compatibility
+gitlab_label_create() {
+    local name=""
+    local description=""
+    local color=""
+    local force=false
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            "-c"|"--color")
+                color="$2"
+                shift 2
+                ;;
+            "-d"|"--description")
+                description="$2"
+                shift 2
+                ;;
+            "-f"|"--force")
+                force=true
+                shift
+                ;;
+            -*)
+                shift
+                ;;
+            *)
+                if [[ -z "$name" ]]; then
+                    name="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$name" ]]; then
+        echo "Error: label name is required" >&2
+        exit 1
+    fi
+    
+    local glab_cmd="glab label create --name \"$name\""
+    
+    if [[ -n "$description" ]]; then
+        glab_cmd="$glab_cmd --description \"$description\""
+    fi
+    
+    if [[ -n "$color" ]]; then
+        # Remove # if present for GitLab
+        color=${color#\#}
+        glab_cmd="$glab_cmd --color \"#$color\""
+    fi
+    
+    # GitLab doesn't have --force, but we can check if label exists and update
+    if [[ "$force" == "true" ]]; then
+        if glab label list --output json | jq -e ".[] | select(.name == \"$name\")" > /dev/null 2>&1; then
+            # Label exists, use edit instead
+            gitlab_label_edit "$name" ${description:+--description "$description"} ${color:+--color "$color"}
+            return
+        fi
+    fi
+    
+    eval "$glab_cmd"
+}
+
+# GitLab label list with gh compatibility
+gitlab_label_list() {
+    local json_fields=""
+    local query=""
+    local limit=""
+    local search=""
+    local web=false
+    local sort=""
+    local order=""
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            "--json")
+                json_fields="$2"
+                shift 2
+                ;;
+            "-q"|"--jq")
+                query="$2"
+                shift 2
+                ;;
+            "-L"|"--limit")
+                limit="$2"
+                shift 2
+                ;;
+            "-S"|"--search")
+                search="$2"
+                shift 2
+                ;;
+            "-w"|"--web")
+                web=true
+                shift
+                ;;
+            "--sort")
+                sort="$2"
+                shift 2
+                ;;
+            "--order")
+                order="$2"
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ "$web" == "true" ]]; then
+        # GitLab doesn't support web view for labels, show error
+        echo "Error: --web not supported for GitLab labels" >&2
+        exit 1
+    fi
+    
+    local glab_cmd="glab label list"
+    
+    if [[ -n "$json_fields" ]] || [[ -n "$query" ]]; then
+        glab_cmd="$glab_cmd --output json"
+    fi
+    
+    if [[ -n "$limit" ]]; then
+        glab_cmd="$glab_cmd --per-page $limit"
+    fi
+    
+    # Execute command and apply jq filter if needed
+    if [[ -n "$query" ]]; then
+        eval "$glab_cmd" | jq -r "$query"
+    else
+        eval "$glab_cmd"
+    fi
+}
+
+# GitLab label edit with gh compatibility
+gitlab_label_edit() {
+    local label_name="$1"
+    shift
+    
+    if [[ -z "$label_name" ]]; then
+        echo "Error: label name is required" >&2
+        exit 1
+    fi
+    
+    local new_name=""
+    local description=""
+    local color=""
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            "-n"|"--name")
+                new_name="$2"
+                shift 2
+                ;;
+            "-c"|"--color")
+                color="$2"
+                shift 2
+                ;;
+            "-d"|"--description")
+                description="$2"
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    # GitLab doesn't have a direct edit command, need to delete and recreate
+    # First get current label info
+    local current_label=$(glab label list --output json | jq -r ".[] | select(.name == \"$label_name\")")
+    
+    if [[ -z "$current_label" ]]; then
+        echo "Error: label '$label_name' not found" >&2
+        exit 1
+    fi
+    
+    # Extract current values if not provided
+    if [[ -z "$new_name" ]]; then
+        new_name="$label_name"
+    fi
+    
+    if [[ -z "$description" ]]; then
+        description=$(echo "$current_label" | jq -r '.description // ""')
+    fi
+    
+    if [[ -z "$color" ]]; then
+        color=$(echo "$current_label" | jq -r '.color // ""')
+    fi
+    
+    # Delete old label and create new one
+    glab label delete "$label_name"
+    gitlab_label_create "$new_name" ${description:+--description "$description"} ${color:+--color "$color"}
+}
+
+# GitLab label delete with gh compatibility
+gitlab_label_delete() {
+    local label_name="$1"
+    local yes=false
+    
+    shift
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            "--yes")
+                yes=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$label_name" ]]; then
+        echo "Error: label name is required" >&2
+        exit 1
+    fi
+    
+    # GitLab CLI doesn't prompt by default, so --yes doesn't change behavior
+    exec glab label delete "$label_name"
 }
