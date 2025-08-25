@@ -81,9 +81,49 @@ conflicts_with: []  # GitHub issue numbers that conflict
 - ~~`closed`~~ - Use `completed` instead
 - ~~`wip`~~ - Use `in_progress` instead
 
-### GitHub Issue Status Priority
+### GitHub Provider Status Reference
 
-**PRIMARY**: Status is managed via GitHub issue status field, not labels.
+**GitHub Issues** (official states):
+- `open` - Issue is active and needs attention
+- `closed` - Issue has been resolved or will not be worked on
+
+**GitHub Projects** (built-in status values):
+- `Todo` - This item hasn't been started (green)
+- `In Progress` - This is actively being worked on (yellow)  
+- `Done` - Item has been completed
+
+**Our Extended Status System**:
+Our status values map to GitHub providers as follows:
+- `open` → GitHub Issues: `open`, GitHub Projects: `Todo`
+- `in_progress` → GitHub Projects: `In Progress`
+- `completed` → GitHub Issues: `closed`, GitHub Projects: `Done`
+- `blocked`, `pending`, `on_hold`, `needs_review` → Custom workflow states (project-specific)
+- Terminal states (`abandoned`, `wont_fix`, `duplicate`) → GitHub Issues: `closed`
+
+### Other Provider Status Reference
+
+**GitLab Issues** (official states):
+- `opened` - Issue is active and needs attention
+- `closed` - Issue has been resolved
+
+**GitLab Merge Requests**:
+- `opened`, `closed`, `locked`, `merged`
+
+**Azure DevOps Work Items**:
+- `New`, `Active`, `Resolved`, `Closed`, `Removed`
+
+**Jira Issues**:
+- `Open`, `In Progress`, `Resolved`, `Closed` (customizable workflow)
+
+**Linear Issues**:
+- `Backlog`, `Todo`, `In Progress`, `In Review`, `Done`, `Canceled`
+
+### Provider Mapping Strategy
+
+When integrating with different providers, our extended status system provides a flexible mapping layer:
+- Core states (`open`, `in_progress`, `completed`) map to most providers
+- Extended states provide granular workflow control within our system
+- Terminal states handle edge cases across all providers
 
 **FUTURE FEATURE**: GitHub label integration for enhanced workflow automation.
 - Planned: Automated label sync with status changes
