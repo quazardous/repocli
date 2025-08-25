@@ -110,13 +110,13 @@ echo ""
 # Test 5: Provider comparison with real data
 echo "Test 5: Provider Comparison"
 compare_json_outputs "$TEST_DATA_DIR/github-issue.json" "$TEST_DATA_DIR/gitlab-issue.json" \
-                     --type "github-to-gitlab" --format "silent" >/dev/null 2>&1
+                     --type "github-to-gitlab" --normalize-content --format "silent" >/dev/null 2>&1
 result=$?
 if [[ $result -eq $COMPARISON_EQUIVALENT ]] || [[ $result -eq $COMPARISON_IDENTICAL ]]; then
     echo "✅ GitHub/GitLab issue comparison - PASS (result: $result)"
 else
     echo "❌ GitHub/GitLab issue comparison - FAIL (result: $result)"
-    # Don't exit here as this might legitimately fail due to data differences
+    echo "   Note: This test uses --normalize-content for structural comparison"
 fi
 echo ""
 
