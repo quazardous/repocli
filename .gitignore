@@ -1,0 +1,23 @@
+# Build artifacts
+*.tar.gz
+*.zip
+
+# Temporary files
+*.tmp
+*~
+
+# Test artifacts
+test-*.conf
+repocli.conf
+
+# macOS
+.DS_Store
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Homebrew test artifacts
+.brew_test/

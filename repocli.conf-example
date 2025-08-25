@@ -1,0 +1,28 @@
+# Repository CLI Configuration
+# Supported providers: github, gitlab, gitea, codeberg
+provider=github
+
+# CLI tool mapping (auto-detected if not specified)
+# github -> gh
+# gitlab -> glab  
+# gitea -> tea
+# codeberg -> tea
+#cli_tool=gh
+
+# Provider-specific settings
+[github]
+# Uses GitHub CLI (gh)
+# No additional config needed - uses gh auth
+
+[gitlab]
+# Uses GitLab CLI (glab)
+# Can specify instance URL for self-hosted GitLab
+#instance=https://gitlab.example.com
+
+[gitea]
+# Uses Gitea CLI (tea)
+#instance=https://gitea.example.com
+
+[codeberg]
+# Uses Codeberg (tea with codeberg.org)
+#instance=https://codeberg.org

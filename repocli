@@ -1,0 +1,89 @@
+#!/bin/bash
+# REPOCLI - Universal Git Hosting Provider CLI
+# Routes commands to appropriate provider CLI tool
+# https://github.com/quazardous/repocli
+
+set -euo pipefail
+
+VERSION="1.0.0"
+
+# Detect installation directory
+SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || realpath "${BASH_SOURCE[0]}" 2>/dev/null || echo "${BASH_SOURCE[0]}")"
+SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
+
+# Check for Homebrew installation (Cellar or standard locations)
+if [[ "$SCRIPT_PATH" =~ /Cellar/repocli/ ]] || [[ -d "$(dirname "$SCRIPT_DIR")/lib/repocli" ]]; then
+    # Homebrew installation
+    LIB_DIR="$(dirname "$SCRIPT_DIR")/lib/repocli"
+elif [[ -f "/usr/local/bin/repocli" ]] && [[ -d "/usr/local/lib/repocli" ]]; then
+    # System installation
+    LIB_DIR="/usr/local/lib/repocli"
+elif [[ -f "$HOME/.local/bin/repocli" ]] && [[ -d "$HOME/.local/lib/repocli" ]]; then
+    # User installation
+    LIB_DIR="$HOME/.local/lib/repocli"
+else
+    # Development mode - running from source
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    LIB_DIR="$SCRIPT_DIR/lib"
+fi
+
+# Source required libraries
+source "$LIB_DIR/config.sh"
+source "$LIB_DIR/utils.sh"
+
+# Load configuration
+load_config
+
+# Show help if no arguments
+if [[ $# -eq 0 ]]; then
+    show_help
+    exit 0
+fi
+
+# Handle special commands
+case "$1" in
+    --version|-v)
+        echo "repocli version $VERSION"
+        exit 0
+        ;;
+    --help|-h)
+        show_help
+        exit 0
+        ;;
+    init)
+        init_config
+        exit 0
+        ;;
+esac
+
+# Check if configured
+if [[ -z "$REPOCLI_PROVIDER" ]]; then
+    echo "❌ REPOCLI not configured" >&2
+    echo "" >&2
+    echo "Run: repocli init" >&2
+    exit 1
+fi
+
+# Load provider wrapper
+case "$REPOCLI_PROVIDER" in
+    github)
+        source "$LIB_DIR/providers/github.sh"
+        github_execute "$@"
+        ;;
+    gitlab)
+        source "$LIB_DIR/providers/gitlab.sh"
+        gitlab_execute "$@"
+        ;;
+    gitea)
+        source "$LIB_DIR/providers/gitea.sh"
+        gitea_execute "$@"
+        ;;
+    codeberg)
+        source "$LIB_DIR/providers/codeberg.sh"
+        codeberg_execute "$@"
+        ;;
+    *)
+        echo "Error: Unknown provider '$REPOCLI_PROVIDER'" >&2
+        exit 1
+        ;;
+esac
