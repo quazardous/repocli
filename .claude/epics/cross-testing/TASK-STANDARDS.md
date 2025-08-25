@@ -196,8 +196,11 @@ Use `TASK-TEMPLATE.md` as the starting point for all new tasks.
 **✅ CORRECT Workflow:**
 1. Create local task file (27.md) with `github: # TO BE CREATED`
 2. Run `/pm:sync` or `/pm:epic-sync` - creates GitHub issue #27
-3. `/pm:sync` automatically updates frontmatter: `github: https://github.com/owner/repo/issues/27`
-4. File name matches GitHub issue number ✅
+3. **SYSTEMATIC CHECK**: Extract GitHub issue number from URL
+4. **AUTOMATIC VERIFICATION**: Does file name match GitHub number?
+5. **IMMEDIATE RENAME**: If mismatch, rename file to match GitHub number
+6. `/pm:sync` automatically updates frontmatter: `github: https://github.com/owner/repo/issues/27`
+7. File name matches GitHub issue number ✅
 
 **❌ INCORRECT Workflow (causes --fix issues):**
 1. ❌ Create local task file (27.md) with `github: https://github.com/owner/repo/issues/27` 
@@ -229,5 +232,38 @@ Use `TASK-TEMPLATE.md` as the starting point for all new tasks.
 - Pre-fill GitHub URLs for non-existent issues
 - Assume GitHub will assign expected issue numbers
 - Mix anticipated and actual GitHub references
+
+### Mandatory Verification Algorithm
+
+**MUST be executed after every GitHub issue creation:**
+
+```bash
+# SYSTEMATIC check - NEVER skip this verification
+github_number=$(grep "^github:" task.md | grep -o '[0-9]*$')
+local_number=$(basename task.md .md)
+
+if [[ "$local_number" != "$github_number" ]]; then
+    echo "🚨 CRITICAL: File-GitHub number mismatch!"
+    echo "   Local file: $local_number.md"
+    echo "   GitHub issue: #$github_number"
+    
+    # IMMEDIATE correction required
+    mv "$local_number.md" "$github_number.md"
+    
+    # Update epic task lists
+    find .claude/epics/ -name "epic.md" -exec sed -i "s/#$local_number /#$github_number /g" {} \;
+    
+    # Update dependency references
+    find .claude/epics/ -name "*.md" -exec sed -i "s/depends_on: \[\([^]]*\)$local_number\([^]]*\)\]/depends_on: [\1$github_number\2]/g" {} \;
+    
+    echo "✅ File renamed and all references updated"
+fi
+```
+
+**This verification MUST happen:**
+- Immediately after `gh issue create`
+- During every `/pm:sync` operation  
+- Before any epic task list updates
+- As part of automated workflows
 
 This prevents sync confusion and ensures --fix flag works correctly for genuine file naming issues.
