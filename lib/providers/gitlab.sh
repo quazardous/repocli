@@ -76,9 +76,9 @@ gitlab_execute() {
             ;;
             
         *)
-            echo "Error: Unsupported command '$cmd' for GitLab provider" >&2
-            echo "Supported commands: auth, issue, repo, --version" >&2
-            exit 1
+            # Pass through unknown commands to glab
+            debug_log "Passing through unknown command to glab: $cmd $*"
+            exec glab "$cmd" "$@"
             ;;
     esac
 }

@@ -65,17 +65,17 @@ if [[ $# -eq 0 ]]; then
     exit 0
 fi
 
-# Handle special commands
+# Handle wrapper-specific commands only
 case "$1" in
-    --version|-v)
+    --repocli-version)
         echo "repocli version $VERSION"
         exit 0
         ;;
-    --help|-h)
+    --repocli-help)
         show_help
         exit 0
         ;;
-    init)
+    repocli:init)
         init_config
         exit 0
         ;;
@@ -85,7 +85,7 @@ esac
 if [[ -z "$REPOCLI_PROVIDER" ]]; then
     echo "❌ REPOCLI not configured" >&2
     echo "" >&2
-    echo "Run: repocli init" >&2
+    echo "Run: repocli repocli:init" >&2
     exit 1
 fi
 

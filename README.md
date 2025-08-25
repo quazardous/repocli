@@ -5,6 +5,25 @@
 
 **REPOCLI** is a universal command-line interface that provides GitHub CLI compatibility across multiple Git hosting providers. Write commands once, run them anywhere.
 
+## 🎯 Wrapper Principle
+
+REPOCLI acts as a **transparent wrapper** around existing CLI tools:
+- **Passes through** standard commands to the underlying CLI (gh, glab, tea)
+- **Only intercepts** wrapper-specific options (prefixed with `--repocli-` or `repocli:`)
+- **Maintains compatibility** with existing CLI tool workflows
+
+```bash
+# These pass through to the underlying CLI tool
+repocli --help              # → gh help, glab help, or tea help
+repocli --version           # → gh version, glab version, or tea version  
+repocli init my-repo        # → gh init my-repo, glab init, etc.
+
+# These are wrapper-specific
+repocli --repocli-help      # → Show wrapper help
+repocli --repocli-version   # → Show wrapper version
+repocli repocli:init        # → Configure wrapper
+```
+
 ## 🚀 Features
 
 - **Universal Interface**: Single command syntax across all providers
@@ -52,20 +71,22 @@ make install  # or sudo make install for system-wide
 git clone https://github.com/quazardous/repocli.git
 cd repocli
 make dev-setup
-./repocli --help
+./repocli --repocli-help
 ```
 
 ### Verify Installation
 ```bash
-repocli --version
-repocli --help
+repocli --repocli-version    # Show wrapper version
+repocli --repocli-help       # Show wrapper help
+repocli --version            # Show underlying CLI version (gh/glab/tea)
+repocli --help               # Show underlying CLI help (gh/glab/tea)
 ```
 
 ## ⚙️ Configuration
 
 ### Initialize Configuration
 ```bash
-repocli init
+repocli repocli:init
 ```
 
 This will prompt you to:
@@ -141,16 +162,6 @@ repocli issue view 123 --json body -q .body
 repocli auth status
 ```
 
-## 🛠 Shell Alias (Optional)
-Add to your shell config for convenience:
-```bash
-# Add to ~/.bashrc or ~/.zshrc
-alias repocli="repocli"
-
-# Now you can use as a direct gh replacement:
-repocli issue list
-repocli auth status
-```
 
 ## 🧪 Command Mapping
 
@@ -242,8 +253,8 @@ cd repocli
 make dev-setup
 
 # Test in development mode
-./repocli --help
-./repocli init
+./repocli --repocli-help
+./repocli repocli:init
 
 # Run tests
 make test
