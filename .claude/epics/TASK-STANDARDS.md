@@ -239,24 +239,44 @@ Use `TASK-TEMPLATE.md` as the starting point for all new tasks.
 
 ```bash
 # SYSTEMATIC check - NEVER skip this verification
-github_number=$(grep "^github:" task.md | grep -o '[0-9]*$')
+github_url=$(grep "^github:" task.md | cut -d' ' -f2-)
 local_number=$(basename task.md .md)
 
-if [[ "$local_number" != "$github_number" ]]; then
-    echo "🚨 CRITICAL: File-GitHub number mismatch!"
-    echo "   Local file: $local_number.md"
-    echo "   GitHub issue: #$github_number"
+# Step 1: Check if GitHub URL exists and is valid issue
+if [[ -n "$github_url" && "$github_url" != "# TO BE CREATED" ]]; then
+    github_number=$(echo "$github_url" | grep -o '[0-9]*$')
     
-    # IMMEDIATE correction required
-    mv "$local_number.md" "$github_number.md"
+    # Verify URL actually points to a valid issue (not PR, not 404)
+    if ! gh issue view "$github_number" &>/dev/null; then
+        echo "❌ BROKEN URL: $github_url does not exist or is not an issue"
+        echo "   File: $local_number.md"
+        echo "   Action: Cleaning broken URL and marking for recreation"
+        
+        # Clean broken URL immediately
+        sed -i "s/^github:.*/github: # TO BE CREATED - previous URL was broken/" task.md
+        echo "✅ Broken URL cleaned. Run /pm:sync to create proper GitHub issue."
+        return 0
+    fi
     
-    # Update epic task lists
-    find .claude/epics/ -name "epic.md" -exec sed -i "s/#$local_number /#$github_number /g" {} \;
-    
-    # Update dependency references
-    find .claude/epics/ -name "*.md" -exec sed -i "s/depends_on: \[\([^]]*\)$local_number\([^]]*\)\]/depends_on: [\1$github_number\2]/g" {} \;
-    
-    echo "✅ File renamed and all references updated"
+    # Step 2: Check file-GitHub number consistency
+    if [[ "$local_number" != "$github_number" ]]; then
+        echo "🚨 CRITICAL: File-GitHub number mismatch!"
+        echo "   Local file: $local_number.md"
+        echo "   GitHub issue: #$github_number"
+        
+        # IMMEDIATE correction required
+        mv "$local_number.md" "$github_number.md"
+        
+        # Update epic task lists
+        find .claude/epics/ -name "epic.md" -exec sed -i "s/#$local_number /#$github_number /g" {} \;
+        
+        # Update dependency references
+        find .claude/epics/ -name "*.md" -exec sed -i "s/depends_on: \[\([^]]*\)$local_number\([^]]*\)\]/depends_on: [\1$github_number\2]/g" {} \;
+        
+        echo "✅ File renamed and all references updated"
+    fi
+else
+    echo "ℹ️  File $local_number.md: GitHub issue to be created"
 fi
 ```
 
@@ -266,4 +286,41 @@ fi
 - Before any epic task list updates
 - As part of automated workflows
 
-This prevents sync confusion and ensures --fix flag works correctly for genuine file naming issues.
+### PM Fix Issue URL Validation
+
+**Enhanced `/pm:fix --issue` Requirements:**
+
+The `--issue` flag must also validate GitHub URL integrity, not just file naming consistency:
+
+**Common Broken URL Scenarios:**
+- ❌ **PR URLs**: `github.com/owner/repo/pull/123` (should be issue, not PR)
+- ❌ **404 URLs**: Issue was deleted or never existed
+- ❌ **Wrong Repository**: URL points to different repo
+- ❌ **Sequence Breaking**: PR #15 created, breaking issue sequence for task files
+
+**Fix Algorithm:**
+```bash
+# Enhanced --issue fix with URL validation
+for file in .claude/epics/*/[0-9]*.md; do
+    github_url=$(grep "^github:" "$file" | cut -d' ' -f2-)
+    
+    if [[ -n "$github_url" && "$github_url" != "# TO BE CREATED" ]]; then
+        github_number=$(echo "$github_url" | grep -o '[0-9]*$')
+        
+        # Test if URL is valid issue (not PR, not 404)
+        if ! gh issue view "$github_number" &>/dev/null; then
+            echo "🧹 CLEANING: $file has broken GitHub URL"
+            sed -i "s/^github:.*/github: # TO BE CREATED - previous URL was broken/" "$file"
+            echo "   → Marked for recreation. Suggest: /pm:sync"
+        fi
+    fi
+done
+```
+
+**Philosophy: Simple and Robust**
+- **Clean broken URLs immediately** → mark as `# TO BE CREATED`
+- **Suggest `/pm:sync` after** → let sync workflow handle recreation properly
+- **No complex auto-recreation** → avoid fragile smart workflows
+- **Clear user guidance** → "Run /pm:sync to create proper GitHub issue"
+
+This handles the classic case where PRs break the issue sequence and leave tasks with invalid GitHub references.

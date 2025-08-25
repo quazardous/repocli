@@ -116,18 +116,37 @@ github: https://github.com/owner/repo/issues/27  # Issue doesn't exist yet!
 ### Critical Verification Algorithm
 **MANDATORY after every GitHub issue creation:**
 ```bash
-# Extract GitHub issue number from URL
-github_number=$(grep "^github:" file.md | grep -o '[0-9]*$')
+# STEP 1: Validate GitHub URL exists and is valid issue
+github_url=$(grep "^github:" file.md | cut -d' ' -f2-)
 local_number=$(basename file.md .md)
 
-# SYSTEMATIC check - NEVER skip this
-if [[ "$local_number" != "$github_number" ]]; then
-    echo "🚨 CRITICAL: File name mismatch detected!"
-    echo "   File: $local_number.md"  
-    echo "   GitHub: #$github_number"
-    echo "   IMMEDIATE ACTION REQUIRED"
-    # Auto-fix MUST happen immediately
-    mv "$local_number.md" "$github_number.md"
-    # Update all references...
+if [[ -n "$github_url" && "$github_url" != "# TO BE CREATED" ]]; then
+    github_number=$(echo "$github_url" | grep -o '[0-9]*$')
+    
+    # Test URL is valid issue (not PR, not 404)
+    if ! gh issue view "$github_number" &>/dev/null; then
+        echo "❌ BROKEN URL detected in $local_number.md"
+        sed -i "s/^github:.*/github: # TO BE CREATED - previous URL was broken/" file.md
+        echo "✅ Cleaned. Run /pm:sync to recreate proper GitHub issue."
+        return 0
+    fi
+    
+    # STEP 2: File-GitHub number consistency check
+    if [[ "$local_number" != "$github_number" ]]; then
+        echo "🚨 CRITICAL: File name mismatch detected!"
+        echo "   File: $local_number.md"  
+        echo "   GitHub: #$github_number"
+        echo "   IMMEDIATE ACTION REQUIRED"
+        # Auto-fix MUST happen immediately
+        mv "$local_number.md" "$github_number.md"
+        # Update all references...
+    fi
 fi
 ```
+
+### PM Fix Enhanced Requirements
+**`/pm:fix --issue` MUST also validate URL integrity:**
+- **Detect broken URLs**: PR links, 404s, wrong repos
+- **Clean immediately**: Replace with `# TO BE CREATED`
+- **Simple approach**: Suggest `/pm:sync` rather than complex auto-recreation
+- **Handle PR sequence breaks**: Common case where PRs disrupt issue numbering
