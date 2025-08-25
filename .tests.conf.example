@@ -1,0 +1,28 @@
+# GitLab Cross-Testing Configuration Template
+# Copy this file to .tests.conf and configure with your private repository
+# 
+# ⚠️ SECURITY: Never commit .tests.conf to version control
+# The .tests.conf file contains references to private repositories
+
+# GitLab instance URL (default: https://gitlab.com)
+# For custom GitLab instances, use full URL: https://gitlab.example.com
+gitlab_test_instance=https://gitlab.com
+
+# Private GitLab repository for testing (required)
+# Format: username/repository
+# Example: john.doe/my-test-repo
+gitlab_test_repo=your-username/your-test-repo
+
+# Test mode configuration (required)
+# - hybrid: Use existing issues if available, create temporary ones if needed (default)
+# - read_only: Only use read operations (safest, limited testing)  
+# - auto_create: Always create temporary test issues (most comprehensive)
+# - existing_only: Only test with existing issues (fail if none available)
+gitlab_test_mode=hybrid
+
+# Prefix for temporary test issues (used in auto_create and hybrid modes)
+gitlab_test_prefix=[REPOCLI-TEST]
+
+# Optional: test username
+# Used for user-specific operations testing
+gitlab_test_user=your-username

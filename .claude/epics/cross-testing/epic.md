@@ -189,10 +189,18 @@ This command will:
 - [ ] #7 - Implement Error Handling and Edge Case Tests (depends on #16) (parallel: true)
 - [ ] #8 - Integrate with Existing Test Suite (depends on #16) (parallel: false)
 - [ ] #9 - Add Custom GitLab Instance Support (depends on #16) (parallel: true)
+- [ ] #17 - Add support for tags/labels in issue creation and listing commands (depends on #16) (parallel: true)
+- [ ] #18 - Add support for parent/child issue relationships (depends on #16) (parallel: true)
+- [ ] #19 - Add comprehensive tests for issue close/reopen operations (depends on #16) (parallel: true)
+- [ ] #20 - Add comprehensive coverage of GitHub CLI features used by PM system (depends on #16) (parallel: true)
+- [ ] #20a - Add extension command framework and sub-issue simulation (depends on #20) (parallel: false)
+- [ ] #20b - Enhance JSON query support for complex -q patterns (depends on #20) (parallel: true)
+- [ ] #20c - Add assignee and label management for issue editing (depends on #20) (parallel: true)
+- [ ] #21 - Standardize provider documentation with source of truth approach (depends on []) (parallel: true)
 
-Total tasks: 11
+Total tasks: 18
 Completed tasks: 5
-Parallel tasks: 6
+Parallel tasks: 13
 Sequential tasks: 5
 ## Estimated Effort
 
