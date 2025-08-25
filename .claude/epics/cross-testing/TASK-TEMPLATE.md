@@ -3,7 +3,7 @@ name: Task Name
 status: open  # open|in_progress|completed|blocked|pending|on_hold|needs_review|abandoned|wont_fix|duplicate
 created: YYYY-MM-DDTHH:MM:SSZ
 updated: 
-github: https://github.com/quazardous/repocli/issues/N
+github: # TO BE ADDED when GitHub issue is created - DO NOT pre-fill
 depends_on: []
 parallel: true
 conflicts_with: []

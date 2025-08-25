@@ -52,12 +52,14 @@ name: Task Name (matches GitHub issue title)
 status: open|in_progress|completed
 created: YYYY-MM-DDTHH:MM:SSZ
 updated: YYYY-MM-DDTHH:MM:SSZ (when modified)
-github: https://github.com/owner/repo/issues/N
+github: https://github.com/owner/repo/issues/N  # ONLY after GitHub issue created
 depends_on: [2, 5]  # GitHub issue numbers
 parallel: true|false
 conflicts_with: []  # GitHub issue numbers that conflict
 ---
 ```
+
+**⚠️ CRITICAL WORKFLOW RULE**: The `github:` field should ONLY be added AFTER the GitHub issue has been actually created. Never put a GitHub URL in advance - this causes sync confusion and --fix flag issues.
 
 ## Status Values
 
@@ -186,3 +188,46 @@ When updating existing tasks to follow standards:
 - **Maintenance**: Easier to update and manage tasks
 
 Use `TASK-TEMPLATE.md` as the starting point for all new tasks.
+
+## GitHub Integration Workflow
+
+### Task Creation Lifecycle
+
+**✅ CORRECT Workflow:**
+1. Create local task file (27.md) with `github: # TO BE CREATED`
+2. Run `/pm:sync` or `/pm:epic-sync` - creates GitHub issue #27
+3. `/pm:sync` automatically updates frontmatter: `github: https://github.com/owner/repo/issues/27`
+4. File name matches GitHub issue number ✅
+
+**❌ INCORRECT Workflow (causes --fix issues):**
+1. ❌ Create local task file (27.md) with `github: https://github.com/owner/repo/issues/27` 
+2. `/pm:sync` gets confused - issue doesn't exist but URL is present
+3. `--fix` flag cannot resolve phantom GitHub references
+4. Manual cleanup required ❌
+
+### Sync Flag Behavior
+
+**--fix Flag Purpose:**
+- ONLY for existing GitHub issues with file naming inconsistencies
+- Example: File `15.md` but GitHub issue is actually #17
+- NOT for issues that don't exist on GitHub yet
+
+**When NOT to Use --fix:**
+- New tasks with empty `github:` field
+- Tasks marked `# TO BE CREATED`
+- First-time epic sync operations
+
+### Best Practices
+
+**✅ DO:**
+- Leave `github:` field empty for new tasks
+- Use `# TO BE CREATED` comment for clarity
+- Let `/pm:sync` manage GitHub URL assignment
+- Use consistent file naming from start
+
+**❌ DON'T:**
+- Pre-fill GitHub URLs for non-existent issues
+- Assume GitHub will assign expected issue numbers
+- Mix anticipated and actual GitHub references
+
+This prevents sync confusion and ensures --fix flag works correctly for genuine file naming issues.
