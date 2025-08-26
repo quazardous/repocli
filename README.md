@@ -275,15 +275,49 @@ make dist
 make homebrew-test
 ```
 
-## 📝 Roadmap
+## 🏆 Current Status
 
-- [ ] **BitBucket support** (via `bb` CLI)
-- [ ] **SourceForge support** 
-- [ ] **Azure DevOps support**
-- [ ] **Advanced command mapping**
-- [ ] **Configuration validation**
-- [ ] **Shell completions** (bash/zsh/fish)
-- [ ] **Docker container** for CI/CD usage
+- **Version**: 1.0.0
+- **Status**: Beta - Ready for initial release
+- **Architecture**: Complete core functionality  
+- **Providers**: GitHub (✅), GitLab (✅), Gitea (🚧), Codeberg (🚧)
+
+### Current Development Priorities
+1. **Complete Gitea Provider** - Essential for tea CLI support
+2. **Complete Codeberg Provider** - Community-requested feature
+3. **Release 1.0.0** - First stable release
+4. **Enhanced Testing & Quality** - Ongoing improvements (Tasks #34, #35)
+
+### Dependencies
+- **Required**: bash, jq
+- **Provider CLIs**: gh, glab, tea (depending on usage)
+- **Build**: make (optional)
+- **Package**: Homebrew (optional)
+
+### Quality Gates
+- All shell scripts pass `shellcheck`
+- Test suite passes (unit + integration)
+- Documentation is up-to-date
+- No breaking changes in stable versions
+
+## 🚀 Release Strategy
+- **Semantic Versioning**: MAJOR.MINOR.PATCH
+- **Release Branches**: release/vX.Y.Z
+- **Hotfixes**: hotfix/vX.Y.Z-patch
+- **Beta Releases**: vX.Y.Z-beta.N
+
+## 📝 Evolution Roadmap
+
+**Current Focus**: Completing core provider ecosystem (Gitea, Codeberg)
+
+For detailed future plans and strategic roadmap, see our comprehensive product evolution plan:
+- **Strategic Vision**: `.claude/prds/project-evo.md`
+- **Cross-Provider Testing**: `.claude/prds/cross-testing.md`
+
+**Next Major Features**: 
+- Plugin architecture for extensibility
+- Enterprise provider support (BitBucket, Azure DevOps)
+- Workflow automation and templates
 
 ## 🐛 Troubleshooting
 
