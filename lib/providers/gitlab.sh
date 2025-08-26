@@ -7,8 +7,12 @@
 gitlab_execute() {
     debug_log "GitLab provider executing with gh compatibility: $*"
     
+    # Support environment variable override for testing (Task #30)
+    # Make glab_binary global so all rca_ functions can access it
+    glab_binary="${REPOCLI_BIN_GLAB:-glab}"
+    
     # Check if glab CLI is available
-    if ! check_cli_tool "glab"; then
+    if ! check_cli_tool "$glab_binary"; then
         exit 1
     fi
     
@@ -51,7 +55,7 @@ rca_auth_status() {
     fi
     
     debug_log "GitLab: Checking authentication status"
-    exec glab auth status
+    exec "$glab_binary" auth status
 }
 
 # Implements GitHub CLI rca_auth_login() for GitLab
@@ -63,7 +67,7 @@ rca_auth_login() {
     fi
     
     debug_log "GitLab: Starting authentication login"
-    exec glab auth login "$@"
+    exec "$glab_binary" auth login "$@"
 }
 
 # Repository operations with standardized rca_ naming
@@ -79,9 +83,9 @@ rca_repo_view() {
     
     if [[ "$*" == *"--json nameWithOwner"* ]]; then
         # Get repository identifier - map GitHub field to GitLab equivalent
-        glab repo view --output json | jq -r '.path_with_namespace'
+        "$glab_binary" repo view --output json | jq -r '.path_with_namespace'
     else
-        exec glab repo view "$@"
+        exec "$glab_binary" repo view "$@"
     fi
 }
 
@@ -127,27 +131,27 @@ rca_issue_view() {
     done
     
     if [[ "$web" == "true" ]]; then
-        exec glab issue view "$issue_num" --web
+        exec "$glab_binary" issue view "$issue_num" --web
     elif [[ -n "$json_fields" ]]; then
         # Map JSON fields from gh to glab format
         case "$json_fields" in
             "state,title,labels,body"|"state,title,labels,assignees,updatedAt")
-                glab issue view "$issue_num" --output json | jq -r "$query"
+                "$glab_binary" issue view "$issue_num" --output json | jq -r "$query"
                 ;;
             "body")
-                glab issue view "$issue_num" --output json | jq -r '.description'
+                "$glab_binary" issue view "$issue_num" --output json | jq -r '.description'
                 ;;
             "number")
                 echo "$issue_num"
                 ;;
             *)
-                glab issue view "$issue_num" --output json | jq -r "$query"
+                "$glab_binary" issue view "$issue_num" --output json | jq -r "$query"
                 ;;
         esac
     elif [[ "$comments" == "true" ]]; then
-        glab issue view "$issue_num" && glab issue note list "$issue_num"
+        "$glab_binary" issue view "$issue_num" && "$glab_binary" issue note list "$issue_num"
     else
-        exec glab issue view "$issue_num"
+        exec "$glab_binary" issue view "$issue_num"
     fi
 }
 
@@ -191,7 +195,7 @@ rca_issue_create() {
         esac
     done
     
-    local glab_cmd="glab issue create"
+    local glab_cmd="\"$glab_binary\" issue create"
     
     if [[ -n "$title" ]]; then
         glab_cmd="$glab_cmd --title \"$title\""
@@ -227,7 +231,7 @@ rca_issue_edit() {
     local issue_num="$1"
     shift
     
-    local glab_cmd="glab issue edit $issue_num"
+    local glab_cmd="\"$glab_binary\" issue edit $issue_num"
     
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -287,9 +291,9 @@ rca_issue_comment() {
     
     if [[ -n "$body_file" ]]; then
         if [[ "$body_file" == "-" ]]; then
-            glab issue note create "$issue_num" --message "$(cat)"
+            "$glab_binary" issue note create "$issue_num" --message "$(cat)"
         else
-            glab issue note create "$issue_num" --message "$(cat "$body_file")"
+            "$glab_binary" issue note create "$issue_num" --message "$(cat "$body_file")"
         fi
     fi
 }
@@ -312,9 +316,9 @@ rca_issue_close() {
     done
     
     if [[ -n "$comment" ]]; then
-        glab issue note create "$issue_num" --message "$comment"
+        "$glab_binary" issue note create "$issue_num" --message "$comment"
     fi
-    glab issue close "$issue_num"
+    "$glab_binary" issue close "$issue_num"
 }
 
 rca_issue_reopen() {
@@ -326,7 +330,7 @@ rca_issue_reopen() {
     
     local issue_num="$1"
     debug_log "GitLab: Reopening issue $issue_num"
-    exec glab issue reopen "$issue_num"
+    exec "$glab_binary" issue reopen "$issue_num"
 }
 
 rca_issue_list() {
@@ -360,7 +364,7 @@ rca_issue_list() {
         esac
     done
     
-    local glab_cmd="glab issue list --output json"
+    local glab_cmd="\"$glab_binary\" issue list --output json"
     
     if [[ -n "$labels" ]]; then
         glab_cmd="$glab_cmd --label=\"$labels\""
@@ -376,14 +380,22 @@ rca_issue_list() {
 # Label management commands with standardized rca_ naming
 # Extension system commands (not applicable for GitLab)
 rca_extension_list() {
-    [[ "$1" == "--repocli-can-handle" ]] && { echo "extension list"; return 0; }
+    # Self-registration: handle extension list commands
+    if [[ "$1" == "--repocli-can-handle" ]]; then
+        shift
+        [[ "$1 $2" == "extension list" ]] && return 0 || return 1
+    fi
     
     debug_log "GitLab: Extensions not applicable"
     echo "GitLab CLI doesn't use extensions" >&2
 }
 
 rca_extension_install() {
-    [[ "$1" == "--repocli-can-handle" ]] && { echo "extension install"; return 0; }
+    # Self-registration: handle extension install commands
+    if [[ "$1" == "--repocli-can-handle" ]]; then
+        shift
+        [[ "$1 $2" == "extension install" ]] && return 0 || return 1
+    fi
     
     debug_log "GitLab: Extensions not applicable"
     echo "Extensions not needed for GitLab CLI" >&2
@@ -426,7 +438,7 @@ rca_label_create() {
         exit 1
     fi
     
-    local glab_cmd="glab label create --name \"$name\""
+    local glab_cmd="\"$glab_binary\" label create --name \"$name\""
     
     if [[ -n "$description" ]]; then
         glab_cmd="$glab_cmd --description \"$description\""
@@ -440,7 +452,7 @@ rca_label_create() {
     
     # GitLab doesn't have --force, but we can check if label exists and update
     if [[ "$force" == "true" ]]; then
-        if glab label list --output json | jq -e ".[] | select(.name == \"$name\")" > /dev/null 2>&1; then
+        if "$glab_binary" label list --output json | jq -e ".[] | select(.name == \"$name\")" > /dev/null 2>&1; then
             # Label exists, use edit instead
             rca_label_edit "$name" ${description:+--description "$description"} ${color:+--color "$color"}
             return
@@ -501,7 +513,7 @@ rca_label_list() {
         exit 1
     fi
     
-    local glab_cmd="glab label list"
+    local glab_cmd="\"$glab_binary\" label list"
     
     if [[ -n "$json_fields" ]] || [[ -n "$query" ]]; then
         glab_cmd="$glab_cmd --output json"
@@ -554,7 +566,7 @@ rca_label_edit() {
     
     # GitLab doesn't have a direct edit command, need to delete and recreate
     # First get current label info
-    local current_label=$(glab label list --output json | jq -r ".[] | select(.name == \"$label_name\")")
+    local current_label=$("$glab_binary" label list --output json | jq -r ".[] | select(.name == \"$label_name\")")
     
     if [[ -z "$current_label" ]]; then
         echo "Error: label '$label_name' not found" >&2
@@ -575,7 +587,7 @@ rca_label_edit() {
     fi
     
     # Delete old label and create new one
-    glab label delete "$label_name"
+    "$glab_binary" label delete "$label_name"
     rca_label_create "$new_name" ${description:+--description "$description"} ${color:+--color "$color"}
 }
 
@@ -602,7 +614,7 @@ rca_label_delete() {
     fi
     
     # GitLab CLI doesn't prompt by default, so --yes doesn't change behavior
-    exec glab label delete "$label_name"
+    exec "$glab_binary" label delete "$label_name"
 }
 
 rca_label_clone() {
@@ -616,8 +628,12 @@ rca_label_clone() {
 
 # Version command
 rca_version() {
-    [[ "$1" == "--repocli-can-handle" ]] && { echo "--version"; return 0; }
+    # Self-registration: handle version command
+    if [[ "$1" == "--repocli-can-handle" ]]; then
+        shift
+        [[ "$1" == "--version" ]] && return 0 || return 1
+    fi
     
     debug_log "GitLab: Handling version command"
-    exec glab version
+    exec "$glab_binary" version
 }

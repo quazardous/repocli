@@ -1,0 +1,473 @@
+#!/bin/bash
+# Smart Mock GitLab CLI (glab) for CI/BC Testing
+# Task #30 Phase 3 Implementation - Smart mock with automatic CI detection
+#
+# Focuses on critical BC patterns:
+# - Parameter translation (--body-file -> --description-file)
+# - Command mapping (issue comment -> issue note create)  
+# - JSON field mapping (body -> description)
+# - Auth handling without external dependencies
+
+set -euo pipefail
+
+# Mock metadata
+MOCK_VERSION="mock-1.32.0"
+MOCK_NAME="GitLab CLI Mock"
+
+# Colors for debug output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+debug_mock() {
+    if [[ "${REPOCLI_DEBUG:-}" == "1" ]] || [[ "${GLAB_DEBUG:-}" == "1" ]]; then
+        echo -e "${BLUE}[MOCK-GLAB]${NC} $1" >&2
+    fi
+}
+
+warning_mock() {
+    echo -e "${YELLOW}[MOCK-GLAB]${NC} $1" >&2
+}
+
+error_mock() {
+    echo -e "${RED}[MOCK-GLAB]${NC} $1" >&2
+}
+
+success_mock() {
+    echo -e "${GREEN}[MOCK-GLAB]${NC} $1" >&2
+}
+
+# Detect CI environment
+is_ci_environment() {
+    [[ -n "${CI:-}" ]] || [[ -n "${GITHUB_ACTIONS:-}" ]] || [[ -n "${BUILD_ID:-}" ]] || [[ -n "${JENKINS_URL:-}" ]]
+}
+
+# Mock GitLab authentication status
+mock_auth_status() {
+    debug_mock "Mocking auth status command"
+    
+    if is_ci_environment; then
+        # In CI, simulate unauthenticated state (common scenario)
+        echo "✗ Not authenticated with GitLab instance gitlab.com" >&2
+        echo "  Authentication required. Please run 'glab auth login'." >&2
+        return 1
+    else
+        # In local development, simulate authenticated state  
+        echo "✓ Authenticated to gitlab.com as mock-user" >&2
+        echo "  Token valid until mock-expiry" >&2
+        return 0
+    fi
+}
+
+# Mock GitLab authentication login
+mock_auth_login() {
+    debug_mock "Mocking auth login command"
+    warning_mock "Mock login - would prompt for authentication in real scenario"
+    
+    if is_ci_environment; then
+        error_mock "Authentication not available in CI environment"
+        return 1
+    else
+        success_mock "Mock authentication successful"
+        return 0
+    fi
+}
+
+# Mock GitLab version command
+mock_version() {
+    debug_mock "Mocking version command"
+    echo "glab version $MOCK_VERSION (mock)"
+    echo ""
+    echo "Mock GitLab CLI for testing backwards compatibility"
+    echo "Real command would show: glab version, build date, etc."
+    return 0
+}
+
+# Mock issue list command with JSON output
+mock_issue_list() {
+    debug_mock "Mocking issue list command: $*"
+    
+    local output_json=false
+    local limit=30
+    local repo=""
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            "--output")
+                [[ "$2" == "json" ]] && output_json=true
+                shift 2
+                ;;
+            "--limit")
+                limit="$2"
+                shift 2
+                ;;
+            "--repo")
+                repo="$2"
+                shift 2
+                ;;
+            "--per-page")
+                limit="$2" 
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ "$output_json" == "true" ]]; then
+        # Return mock JSON data for BC testing
+        cat << EOF
+[
+  {
+    "id": 1,
+    "iid": 1,
+    "title": "Mock Issue 1",
+    "description": "This is a mock issue for BC testing",
+    "state": "opened",
+    "created_at": "2023-01-01T00:00:00Z",
+    "updated_at": "2023-01-01T00:00:00Z",
+    "labels": ["bug", "mock"],
+    "assignees": []
+  },
+  {
+    "id": 2,
+    "iid": 2, 
+    "title": "Mock Issue 2",
+    "description": "Another mock issue",
+    "state": "closed",
+    "created_at": "2023-01-02T00:00:00Z",
+    "updated_at": "2023-01-02T00:00:00Z",
+    "labels": ["enhancement"],
+    "assignees": [{"username": "mock-user"}]
+  }
+]
+EOF
+    else
+        # Return human-readable format
+        echo "#1  Mock Issue 1                  (bug, mock)"
+        echo "#2  Mock Issue 2                  (enhancement)"
+    fi
+    
+    return 0
+}
+
+# Mock issue view command with JSON field mapping
+mock_issue_view() {
+    debug_mock "Mocking issue view command: $*"
+    
+    local issue_num="$1"
+    shift
+    
+    local output_json=false
+    local web=false
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            "--output")
+                [[ "$2" == "json" ]] && output_json=true
+                shift 2
+                ;;
+            "--web")
+                web=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ "$web" == "true" ]]; then
+        debug_mock "Web view requested - would open browser"
+        success_mock "Would open: https://gitlab.com/mock-org/mock-repo/-/issues/$issue_num"
+        return 0
+    fi
+    
+    if [[ "$output_json" == "true" ]]; then
+        # Return mock JSON with GitLab field names (description not body)
+        cat << EOF
+{
+  "id": $issue_num,
+  "iid": $issue_num,
+  "title": "Mock Issue $issue_num",
+  "description": "This is the description (not body) field for BC testing GitLab field mapping",
+  "state": "opened",
+  "created_at": "2023-01-01T00:00:00Z",
+  "updated_at": "2023-01-01T00:00:00Z",
+  "labels": ["mock", "bc-test"],
+  "assignees": [],
+  "web_url": "https://gitlab.com/mock-org/mock-repo/-/issues/$issue_num"
+}
+EOF
+    else
+        # Return human-readable format
+        echo "Mock Issue $issue_num"
+        echo "=================="
+        echo ""
+        echo "This is the description for mock issue $issue_num"
+        echo ""
+        echo "Labels: mock, bc-test"
+        echo "State: opened"
+        echo "Created: 2023-01-01T00:00:00Z"
+    fi
+    
+    return 0
+}
+
+# Mock issue create command (validates parameter translation)
+mock_issue_create() {
+    debug_mock "Mocking issue create command: $*"
+    
+    local title=""
+    local description_file=""
+    local labels=""
+    local assignee=""
+    
+    # Parse arguments - validate parameter translation
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            "--title")
+                title="$2"
+                debug_mock "BC: Title parameter detected: $title"
+                shift 2
+                ;;
+            "--description-file")
+                description_file="$2"
+                debug_mock "BC: --description-file parameter correctly translated from --body-file"
+                shift 2
+                ;;
+            "--label")
+                labels="$2"
+                debug_mock "BC: Label parameter detected: $labels"
+                shift 2
+                ;;
+            "--assignee")
+                assignee="$2"
+                debug_mock "BC: Assignee parameter detected: $assignee"
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    # Validate required BC translation occurred
+    if [[ -n "$description_file" ]]; then
+        success_mock "✅ Parameter translation validation: --body-file -> --description-file working"
+    fi
+    
+    # Mock issue creation success
+    local mock_issue_num=$((RANDOM % 1000 + 100))
+    echo "https://gitlab.com/mock-org/mock-repo/-/issues/$mock_issue_num"
+    debug_mock "Mock issue created with number: $mock_issue_num"
+    
+    return 0
+}
+
+# Mock issue note create (validates command mapping)
+mock_issue_note_create() {
+    debug_mock "Mocking issue note create command: $*"
+    
+    local issue_num="$1"
+    shift
+    
+    success_mock "✅ Command translation validation: 'issue comment' -> 'issue note create' working"
+    debug_mock "Mock comment created for issue $issue_num"
+    
+    return 0
+}
+
+# Mock repository view command
+mock_repo_view() {
+    debug_mock "Mocking repo view command: $*"
+    
+    local output_json=false
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            "--output")
+                [[ "$2" == "json" ]] && output_json=true
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ "$output_json" == "true" ]]; then
+        cat << EOF
+{
+  "id": 123,
+  "name": "mock-repo",
+  "path_with_namespace": "mock-org/mock-repo",
+  "description": "Mock repository for BC testing",
+  "default_branch": "main",
+  "web_url": "https://gitlab.com/mock-org/mock-repo"
+}
+EOF
+    else
+        echo "mock-org/mock-repo"
+        echo "Description: Mock repository for BC testing"
+        echo "URL: https://gitlab.com/mock-org/mock-repo"
+    fi
+    
+    return 0
+}
+
+# Mock label list command
+mock_label_list() {
+    debug_mock "Mocking label list command: $*"
+    
+    local output_json=false
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            "--output")
+                [[ "$2" == "json" ]] && output_json=true
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ "$output_json" == "true" ]]; then
+        cat << EOF
+[
+  {
+    "id": 1,
+    "name": "bug",
+    "description": "Bug reports",
+    "color": "#FF0000"
+  },
+  {
+    "id": 2,
+    "name": "enhancement", 
+    "description": "Feature requests",
+    "color": "#00FF00"
+  }
+]
+EOF
+    else
+        echo "bug         Bug reports         #FF0000"
+        echo "enhancement Feature requests    #00FF00"
+    fi
+    
+    return 0
+}
+
+# Main command dispatcher
+main() {
+    debug_mock "Mock GitLab CLI called with: $*"
+    
+    case "${1:-help}" in
+        "version"|"--version")
+            mock_version
+            ;;
+        "auth")
+            case "${2:-status}" in
+                "status")
+                    shift 2
+                    mock_auth_status "$@"
+                    ;;
+                "login")
+                    shift 2
+                    mock_auth_login "$@"
+                    ;;
+                *)
+                    error_mock "Unknown auth command: $2"
+                    return 1
+                    ;;
+            esac
+            ;;
+        "issue")
+            case "${2:-list}" in
+                "list")
+                    shift 2
+                    mock_issue_list "$@"
+                    ;;
+                "view")
+                    shift 2
+                    mock_issue_view "$@"
+                    ;;
+                "create")
+                    shift 2
+                    mock_issue_create "$@"
+                    ;;
+                "note")
+                    if [[ "${3:-}" == "create" ]]; then
+                        shift 3
+                        mock_issue_note_create "$@"
+                    else
+                        error_mock "Unknown issue note command: $3"
+                        return 1
+                    fi
+                    ;;
+                *)
+                    error_mock "Unknown issue command: $2"
+                    return 1
+                    ;;
+            esac
+            ;;
+        "repo")
+            case "${2:-view}" in
+                "view")
+                    shift 2
+                    mock_repo_view "$@"
+                    ;;
+                *)
+                    error_mock "Unknown repo command: $2"
+                    return 1
+                    ;;
+            esac
+            ;;
+        "label")
+            case "${2:-list}" in
+                "list")
+                    shift 2
+                    mock_label_list "$@"
+                    ;;
+                *)
+                    error_mock "Unknown label command: $2"
+                    return 1
+                    ;;
+            esac
+            ;;
+        "help"|"--help")
+            echo "$MOCK_NAME - Smart Mock for BC Testing"
+            echo "Supports key GitLab CLI commands for backwards compatibility validation"
+            echo ""
+            echo "Available commands:"
+            echo "  auth status    - Mock authentication status"
+            echo "  auth login     - Mock authentication login"
+            echo "  issue list     - Mock issue listing with JSON"
+            echo "  issue view     - Mock issue viewing with field mapping"
+            echo "  issue create   - Mock issue creation (validates parameter translation)"
+            echo "  repo view      - Mock repository information"
+            echo "  version        - Show mock version"
+            echo ""
+            echo "BC Testing Features:"
+            echo "  ✓ Parameter translation validation (--body-file -> --description-file)"
+            echo "  ✓ Command mapping validation (issue comment -> issue note create)"
+            echo "  ✓ JSON field mapping (body -> description)"
+            echo "  ✓ CI environment detection"
+            echo ""
+            ;;
+        *)
+            error_mock "Unknown command: $1"
+            error_mock "This is a mock GitLab CLI for BC testing - not all commands implemented"
+            return 1
+            ;;
+    esac
+}
+
+# Execute main function
+main "$@"

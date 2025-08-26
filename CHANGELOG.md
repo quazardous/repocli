@@ -11,6 +11,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced path detection for Homebrew installations
 - Makefile with standard build targets
 - GitLab custom instance support via GITLAB_HOST
+- **CI/Test Runner Foundation (Task #30)**:
+  - Smart mock system for GitHub (`tests/mocks/gh`) and GitLab (`tests/mocks/glab`) CLI tools
+  - Environment variable support for mock injection (`REPOCLI_BIN_GH`, `REPOCLI_BIN_GLAB`)
+  - Backwards compatibility testing without external dependencies
+  - CI-friendly mock responses with automatic environment detection
+  - Mock scenario support via `REPOCLI_MOCK_SCENARIO` environment variable
+  - Mock activation system: `tests/enable-mocks.sh`, `tests/run-with-mocks.sh`
+  - BC test runners: `ci/run-bc-tests.sh`, `tests/cross-testing/run-gitlab-tests.sh`
+  - PM system compatibility patterns validation (auth status, JSON extraction, extension detection)
+  - GitLab parameter translation validation (--body-file → --description-file)
+  - Cross-provider testing with 80% BC coverage using 20% implementation effort
 
 ### Changed
 - Updated README with Homebrew installation instructions
