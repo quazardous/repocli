@@ -2,8 +2,8 @@
 name: cross-testing
 status: in_progress
 created: 2025-08-25T08:57:47Z
-updated: 2025-08-25T12:13:57Z
-last_sync: 2025-08-25T14:14:47Z
+updated: 2025-08-26T03:02:53+02:00
+last_sync: 2025-08-26T03:02:53+02:00
 progress: 33%
 prd: .claude/prds/cross-testing.md
 github: https://github.com/quazardous/repocli/issues/1
@@ -197,11 +197,15 @@ This command will:
 - [ ] #24 - Enhance JSON query support for complex -q patterns (depends on #22) (parallel: true)
 - [ ] #25 - Add assignee and label management for issue editing (depends on #22) (parallel: true)
 - [x] #26 - Standardize provider documentation with source of truth approach (depends on []) (parallel: true) ✅ COMPLETED
+- [x] #30 - Implement CI/Test Runner Foundation (depends on #14) (parallel: true) ✅ COMPLETED
+- [ ] #31 - Implement rca_sub_issue_create wrapper function for PM compatibility (depends on #22) (parallel: false)
+- [ ] #34 - Analyze and Fix PR #33 CI Failures (depends on #30) (parallel: false)
+- [ ] #35 - Refactor Providers and Standardize Error Handling (depends on #34) (parallel: false)
 
-Total tasks: 18
-Completed tasks: 7
-Parallel tasks: 13
-Sequential tasks: 5
+Total tasks: 22
+Completed tasks: 8
+Parallel tasks: 16
+Sequential tasks: 6
 ## Estimated Effort
 
 **Overall Timeline**: 3-5 days implementation
