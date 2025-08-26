@@ -40,6 +40,8 @@ show_help() {
     echo "Environment Variables:"
     echo "  REPOCLI_CONFIG     Path to configuration file"
     echo "  REPOCLI_DEBUG      Enable debug output (set to 1)"
+    echo "  REPOCLI_BIN_GH     Override gh CLI binary (for testing)"
+    echo "  REPOCLI_BIN_GLAB   Override glab CLI binary (for testing)"
     echo ""
     echo "Supported providers:"
     echo "  • GitHub (gh)"
@@ -51,9 +53,20 @@ show_help() {
 # Check if CLI tool is available
 check_cli_tool() {
     local tool="$1"
+    local actual_tool="$tool"
     
-    if ! command -v "$tool" &> /dev/null; then
-        echo "❌ CLI tool '$tool' not found" >&2
+    # Support environment variable overrides for testing and mock injection
+    case "$tool" in
+        gh)
+            actual_tool="${REPOCLI_BIN_GH:-gh}"
+            ;;
+        glab)
+            actual_tool="${REPOCLI_BIN_GLAB:-glab}"
+            ;;
+    esac
+    
+    if ! command -v "$actual_tool" &> /dev/null; then
+        echo "❌ CLI tool '$actual_tool' not found" >&2
         echo "" >&2
         case "$tool" in
             gh)

@@ -1,0 +1,606 @@
+#!/bin/bash
+# Smart Mock GitHub CLI (gh) for CI/BC Testing
+# Task #30 Phase 4 Implementation - Validates GitHub provider passthrough
+#
+# Focuses on critical BC patterns for PM system compatibility:
+# - Silent auth checks (exit code 0/1)
+# - JSON extraction (--json fields -q query)
+# - Extension detection (greppable output)
+# - Version display (first line format)
+# - Repository info extraction
+
+set -euo pipefail
+
+# Mock metadata
+MOCK_VERSION="mock-2.40.1"
+MOCK_NAME="GitHub CLI Mock"
+MOCK_BUILD_DATE="2023-12-01"
+
+# Colors for debug output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+debug_mock() {
+    if [[ "${REPOCLI_DEBUG:-}" == "1" ]] || [[ "${GH_DEBUG:-}" == "1" ]]; then
+        echo -e "${BLUE}[MOCK-GH]${NC} $1" >&2
+    fi
+}
+
+warning_mock() {
+    echo -e "${YELLOW}[MOCK-GH]${NC} $1" >&2
+}
+
+error_mock() {
+    echo -e "${RED}[MOCK-GH]${NC} $1" >&2
+}
+
+success_mock() {
+    echo -e "${GREEN}[MOCK-GH]${NC} $1" >&2
+}
+
+# Detect CI environment
+is_ci_environment() {
+    [[ -n "${CI:-}" ]] || [[ -n "${GITHUB_ACTIONS:-}" ]] || [[ -n "${BUILD_ID:-}" ]] || [[ -n "${JENKINS_URL:-}" ]]
+}
+
+# Mock GitHub authentication status (PM CRITICAL)
+# PM Pattern: if gh auth status &> /dev/null; then
+# PM Pattern: $(gh auth status 2>&1 | grep -o 'Logged in to [^ ]*' || echo 'Not authenticated')
+mock_auth_status() {
+    debug_mock "Mocking auth status command for PM compatibility"
+    
+    if is_ci_environment; then
+        # In CI, simulate unauthenticated state (common scenario)
+        echo "error connecting to github.com" >&2
+        echo "check your internet connection or https://github.com/cli/cli/issues/new/choose" >&2
+        return 1
+    else
+        # In local development, simulate authenticated state with PM-parseable format
+        echo "✓ Logged in to github.com as mock-user (/home/user/.config/gh/hosts.yml)" >&2
+        echo "  - Git operations for github.com configured to use https protocol." >&2
+        echo "  - Token valid until mock-expiry" >&2
+        return 0
+    fi
+}
+
+# Mock GitHub authentication login
+mock_auth_login() {
+    debug_mock "Mocking auth login command"
+    warning_mock "Mock login - would prompt for authentication in real scenario"
+    
+    if is_ci_environment; then
+        error_mock "Authentication not available in CI environment"
+        return 1
+    else
+        success_mock "Mock authentication successful"
+        return 0
+    fi
+}
+
+# Mock GitHub version command (PM CRITICAL)
+# PM Pattern: gh --version | head -1
+mock_version() {
+    debug_mock "Mocking version command for PM compatibility"
+    # First line must be parseable by PM system
+    echo "gh version $MOCK_VERSION ($MOCK_BUILD_DATE) (mock)"
+    echo "https://github.com/cli/cli/releases/tag/v$MOCK_VERSION"
+    echo ""
+    echo "Mock GitHub CLI for testing backwards compatibility"
+    return 0
+}
+
+# Mock issue list command with JSON output (PM CRITICAL)
+# PM Pattern: gh issue list --json fields
+mock_issue_list() {
+    debug_mock "Mocking issue list command for PM compatibility: $*"
+    
+    local json_fields=""
+    local jq_query=""
+    local limit=30
+    local labels=""
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            "--json")
+                json_fields="$2"
+                shift 2
+                ;;
+            "-q"|"--jq")
+                jq_query="$2"
+                shift 2
+                ;;
+            "--limit")
+                limit="$2"
+                shift 2
+                ;;
+            "--label")
+                labels="$2"
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -n "$json_fields" ]]; then
+        # Return mock JSON data with GitHub field names (body not description)
+        local mock_json='[
+  {
+    "id": 1,
+    "number": 1,
+    "title": "Mock GitHub Issue 1",
+    "body": "This is the body field (not description) for GitHub BC testing",
+    "state": "open",
+    "createdAt": "2023-01-01T00:00:00Z",
+    "updatedAt": "2023-01-01T00:00:00Z",
+    "labels": [{"name": "bug"}, {"name": "mock"}],
+    "assignees": [],
+    "url": "https://github.com/mock-org/mock-repo/issues/1"
+  },
+  {
+    "id": 2,
+    "number": 2,
+    "title": "Mock GitHub Issue 2", 
+    "body": "Another mock issue for BC testing",
+    "state": "closed",
+    "createdAt": "2023-01-02T00:00:00Z",
+    "updatedAt": "2023-01-02T00:00:00Z",
+    "labels": [{"name": "enhancement"}],
+    "assignees": [{"login": "mock-user"}],
+    "url": "https://github.com/mock-org/mock-repo/issues/2"
+  }
+]'
+        
+        if [[ -n "$jq_query" ]]; then
+            # Apply jq query (PM uses this pattern)
+            echo "$mock_json" | jq -r "$jq_query"
+        else
+            echo "$mock_json"
+        fi
+    else
+        # Return human-readable format
+        echo "1	Mock GitHub Issue 1	bug, mock"
+        echo "2	Mock GitHub Issue 2	enhancement"
+    fi
+    
+    return 0
+}
+
+# Mock issue view command with JSON field mapping (PM CRITICAL)
+# PM Pattern: gh issue view {epic_number} --json body -q .body
+mock_issue_view() {
+    debug_mock "Mocking issue view command for PM compatibility: $*"
+    
+    local issue_num="$1"
+    shift
+    
+    local json_fields=""
+    local jq_query=""
+    local web=false
+    local comments=false
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            "--json")
+                json_fields="$2"
+                shift 2
+                ;;
+            "-q"|"--jq")
+                jq_query="$2"
+                shift 2
+                ;;
+            "--web")
+                web=true
+                shift
+                ;;
+            "--comments")
+                comments=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ "$web" == "true" ]]; then
+        debug_mock "Web view requested - would open browser"
+        success_mock "Would open: https://github.com/mock-org/mock-repo/issues/$issue_num"
+        return 0
+    fi
+    
+    if [[ -n "$json_fields" ]]; then
+        # Return mock JSON with GitHub field names (body not description)
+        local mock_json="{
+  \"id\": $issue_num,
+  \"number\": $issue_num,
+  \"title\": \"Mock GitHub Issue $issue_num\",
+  \"body\": \"This is the body field (not description) for GitHub BC testing PM compatibility\",
+  \"state\": \"open\",
+  \"createdAt\": \"2023-01-01T00:00:00Z\",
+  \"updatedAt\": \"2023-01-01T00:00:00Z\",
+  \"labels\": [{\"name\": \"mock\"}, {\"name\": \"bc-test\"}],
+  \"assignees\": [],
+  \"url\": \"https://github.com/mock-org/mock-repo/issues/$issue_num\"
+}"
+        
+        if [[ -n "$jq_query" ]]; then
+            # Apply jq query (PM critical pattern)
+            echo "$mock_json" | jq -r "$jq_query"
+        else
+            echo "$mock_json"
+        fi
+    else
+        # Return human-readable format
+        echo "Mock GitHub Issue $issue_num"
+        echo "==========================="
+        echo ""
+        echo "This is the body for mock GitHub issue $issue_num"
+        echo ""
+        echo "Labels: mock, bc-test"
+        echo "State: open"
+        echo "Created: 2023-01-01T00:00:00Z"
+    fi
+    
+    return 0
+}
+
+# Mock issue create command (PM CRITICAL)
+# PM Pattern: epic_number=$(gh issue create --json number -q .number)
+mock_issue_create() {
+    debug_mock "Mocking issue create command for PM compatibility: $*"
+    
+    local title=""
+    local body_file=""
+    local labels=""
+    local assignee=""
+    local json_fields=""
+    local jq_query=""
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            "--title")
+                title="$2"
+                debug_mock "Title parameter: $title"
+                shift 2
+                ;;
+            "--body-file")
+                body_file="$2"
+                debug_mock "Body file parameter: $body_file"
+                shift 2
+                ;;
+            "--label")
+                labels="$2"
+                debug_mock "Labels parameter: $labels"
+                shift 2
+                ;;
+            "--assignee")
+                assignee="$2"
+                debug_mock "Assignee parameter: $assignee"
+                shift 2
+                ;;
+            "--json")
+                json_fields="$2"
+                shift 2
+                ;;
+            "-q"|"--jq")
+                jq_query="$2"
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    # Mock issue creation success
+    local mock_issue_num=$((RANDOM % 1000 + 100))
+    
+    if [[ -n "$json_fields" ]]; then
+        # Return JSON format (PM critical pattern)
+        local mock_json="{
+  \"id\": $mock_issue_num,
+  \"number\": $mock_issue_num,
+  \"title\": \"$title\",
+  \"body\": \"Mock issue body\",
+  \"url\": \"https://github.com/mock-org/mock-repo/issues/$mock_issue_num\"
+}"
+        
+        if [[ -n "$jq_query" ]]; then
+            # PM critical: extract .number
+            echo "$mock_json" | jq -r "$jq_query"
+        else
+            echo "$mock_json"
+        fi
+    else
+        # Default output format
+        echo "https://github.com/mock-org/mock-repo/issues/$mock_issue_num"
+    fi
+    
+    debug_mock "Mock issue created with number: $mock_issue_num"
+    return 0
+}
+
+# Mock repository view command (PM CRITICAL)  
+# PM Pattern: repo=$(gh repo view --json nameWithOwner -q .nameWithOwner)
+mock_repo_view() {
+    debug_mock "Mocking repo view command for PM compatibility: $*"
+    
+    local json_fields=""
+    local jq_query=""
+    local web=false
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            "--json")
+                json_fields="$2"
+                shift 2
+                ;;
+            "-q"|"--jq")
+                jq_query="$2"
+                shift 2
+                ;;
+            "--web")
+                web=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ "$web" == "true" ]]; then
+        debug_mock "Web view requested - would open browser"
+        success_mock "Would open: https://github.com/mock-org/mock-repo"
+        return 0
+    fi
+    
+    if [[ -n "$json_fields" ]]; then
+        # Return mock JSON with GitHub field names
+        local mock_json='{
+  "id": "MDEwOjJlcG9zaXRvcnkxMjM0NTY3ODk=",
+  "name": "mock-repo",
+  "nameWithOwner": "mock-org/mock-repo",
+  "description": "Mock repository for BC testing",
+  "defaultBranch": "main",
+  "url": "https://github.com/mock-org/mock-repo"
+}'
+        
+        if [[ -n "$jq_query" ]]; then
+            # PM critical: extract .nameWithOwner
+            echo "$mock_json" | jq -r "$jq_query"
+        else
+            echo "$mock_json"
+        fi
+    else
+        # Default human-readable format
+        echo "mock-org/mock-repo"
+        echo "Description: Mock repository for BC testing"
+        echo "URL: https://github.com/mock-org/mock-repo"
+    fi
+    
+    return 0
+}
+
+# Mock extension list command (PM CRITICAL)
+# PM Pattern: if gh extension list | grep -q "yahsan2/gh-sub-issue"; then
+mock_extension_list() {
+    debug_mock "Mocking extension list command for PM compatibility"
+    
+    # Return greppable extension list
+    echo "gh actions		gh/gh-actions"
+    echo "gh sub-issue		yahsan2/gh-sub-issue"
+    echo "gh dash			dlvhdr/gh-dash"
+    
+    return 0
+}
+
+# Mock extension install command (PM CRITICAL)
+mock_extension_install() {
+    debug_mock "Mocking extension install command for PM compatibility: $*"
+    
+    local extension_name="$1"
+    
+    if [[ -n "$extension_name" ]]; then
+        success_mock "✅ Mock installation of extension: $extension_name"
+        debug_mock "Extension $extension_name would be installed"
+        return 0
+    else
+        error_mock "Extension name required"
+        return 1
+    fi
+}
+
+# Mock label list command
+mock_label_list() {
+    debug_mock "Mocking label list command: $*"
+    
+    local json_fields=""
+    local jq_query=""
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            "--json")
+                json_fields="$2"
+                shift 2
+                ;;
+            "-q"|"--jq")
+                jq_query="$2"
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -n "$json_fields" ]]; then
+        local mock_json='[
+  {
+    "id": "MDU6TGFiZWwxMjM0NTY3ODk=",
+    "name": "bug",
+    "description": "Something is not working",
+    "color": "d73a49"
+  },
+  {
+    "id": "MDU6TGFiZWwxMjM0NTY3OTA=", 
+    "name": "enhancement",
+    "description": "New feature or request",
+    "color": "a2eeef"
+  }
+]'
+        
+        if [[ -n "$jq_query" ]]; then
+            echo "$mock_json" | jq -r "$jq_query"
+        else
+            echo "$mock_json"
+        fi
+    else
+        echo "bug			Something is not working		#d73a49"
+        echo "enhancement		New feature or request		#a2eeef"
+    fi
+    
+    return 0
+}
+
+# Main command dispatcher
+main() {
+    debug_mock "Mock GitHub CLI called with: $*"
+    
+    case "${1:-help}" in
+        "--version")
+            mock_version
+            ;;
+        "auth")
+            case "${2:-status}" in
+                "status")
+                    shift 2
+                    mock_auth_status "$@"
+                    ;;
+                "login")
+                    shift 2
+                    mock_auth_login "$@"
+                    ;;
+                *)
+                    error_mock "Unknown auth command: $2"
+                    return 1
+                    ;;
+            esac
+            ;;
+        "issue")
+            case "${2:-list}" in
+                "list")
+                    shift 2
+                    mock_issue_list "$@"
+                    ;;
+                "view")
+                    shift 2
+                    mock_issue_view "$@"
+                    ;;
+                "create")
+                    shift 2
+                    mock_issue_create "$@"
+                    ;;
+                "comment"|"edit"|"close"|"reopen")
+                    debug_mock "Mock issue $2 command (basic success)"
+                    success_mock "✅ Mock $2 operation completed"
+                    return 0
+                    ;;
+                *)
+                    error_mock "Unknown issue command: $2"
+                    return 1
+                    ;;
+            esac
+            ;;
+        "repo")
+            case "${2:-view}" in
+                "view")
+                    shift 2
+                    mock_repo_view "$@"
+                    ;;
+                *)
+                    error_mock "Unknown repo command: $2"
+                    return 1
+                    ;;
+            esac
+            ;;
+        "label")
+            case "${2:-list}" in
+                "list"|"create"|"edit"|"delete"|"clone")
+                    if [[ "$2" == "list" ]]; then
+                        shift 2
+                        mock_label_list "$@"
+                    else
+                        debug_mock "Mock label $2 command (basic success)"
+                        success_mock "✅ Mock label $2 operation completed"
+                        return 0
+                    fi
+                    ;;
+                *)
+                    error_mock "Unknown label command: $2"
+                    return 1
+                    ;;
+            esac
+            ;;
+        "extension")
+            case "${2:-list}" in
+                "list")
+                    shift 2
+                    mock_extension_list "$@"
+                    ;;
+                "install")
+                    shift 2
+                    mock_extension_install "$@"
+                    ;;
+                *)
+                    error_mock "Unknown extension command: $2"
+                    return 1
+                    ;;
+            esac
+            ;;
+        "sub-issue")
+            debug_mock "Mock sub-issue command (extension command)"
+            success_mock "✅ Mock sub-issue operation completed"
+            return 0
+            ;;
+        "help"|"--help")
+            echo "$MOCK_NAME - Smart Mock for BC Testing"
+            echo "Validates GitHub provider passthrough doesn't break PM compatibility"
+            echo ""
+            echo "Available commands:"
+            echo "  auth status    - Mock authentication status (PM critical)"
+            echo "  auth login     - Mock authentication login"
+            echo "  issue list     - Mock issue listing with JSON (PM critical)"
+            echo "  issue view     - Mock issue viewing with JSON fields (PM critical)"
+            echo "  issue create   - Mock issue creation with JSON extraction (PM critical)"
+            echo "  repo view      - Mock repository info with nameWithOwner (PM critical)"
+            echo "  extension list - Mock extension listing (PM critical)"
+            echo "  --version      - Show mock version (PM critical)"
+            echo ""
+            echo "PM System Compatibility:"
+            echo "  ✓ Silent auth checks (exit code validation)"
+            echo "  ✓ JSON extraction patterns (--json fields -q query)"
+            echo "  ✓ Extension detection (greppable output)"
+            echo "  ✓ Version parsing (first line format)" 
+            echo "  ✓ Repository info extraction"
+            echo ""
+            ;;
+        *)
+            error_mock "Unknown command: $1"
+            error_mock "This is a mock GitHub CLI for BC testing - not all commands implemented"
+            return 1
+            ;;
+    esac
+}
+
+# Execute main function
+main "$@"

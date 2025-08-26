@@ -68,8 +68,11 @@ github_execute() {
     fi
     
     # Direct passthrough to gh CLI - GitHub provider maintains 1:1 compatibility
+    # Support environment variable override for testing (Task #30)
+    local gh_binary="${REPOCLI_BIN_GH:-gh}"
+    
     # The rca_ functions below are for documentation purposes only
-    exec gh "$@"
+    exec "$gh_binary" "$@"
 }
 
 # The functions below this point are never executed - they're documentation only

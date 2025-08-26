@@ -1,0 +1,112 @@
+name: REPOCLI CI - Backwards Compatibility Testing
+
+# Trigger CI on pushes to main and epic branches, and on pull requests
+on:
+  push:
+    branches: [ main, epic/* ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  # Core backwards compatibility testing using existing test infrastructure
+  bc-core-tests:
+    name: BC Core Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Make repocli executable
+        run: chmod +x ./repocli
+      
+      - name: Run core BC tests using existing test suite
+        run: ./ci/run-bc-tests.sh
+        env:
+          # Disable interactive prompts for CI
+          CI: true
+          REPOCLI_DEBUG: 0
+
+  # GitHub provider testing (requires GitHub CLI)
+  github-provider-tests:
+    name: GitHub Provider Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Install GitHub CLI
+        run: |
+          type -p curl >/dev/null || (sudo apt update && sudo apt install curl -y)
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+          sudo apt update
+          sudo apt install gh -y
+      
+      - name: Make repocli executable
+        run: chmod +x ./repocli
+      
+      - name: Run GitHub provider tests using existing cross-testing framework
+        run: ./tests/cross-testing/run-github-tests.sh
+        env:
+          CI: true
+          REPOCLI_DEBUG: 0
+
+  # GitLab provider testing (requires GitLab CLI)
+  gitlab-provider-tests:
+    name: GitLab Provider Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Install GitLab CLI
+        run: |
+          # Install glab CLI
+          curl -fsSL https://gitlab.com/gitlab-org/cli/-/releases/permalink/latest/downloads/glab_linux_amd64.deb -o glab.deb
+          sudo dpkg -i glab.deb
+          rm glab.deb
+      
+      - name: Make repocli executable
+        run: chmod +x ./repocli
+      
+      - name: Run GitLab provider tests using existing cross-testing framework
+        run: ./tests/cross-testing/run-cross-tests.sh gitlab
+        env:
+          CI: true
+          REPOCLI_DEBUG: 0
+
+  # Overall cross-testing (runs all available tests)
+  cross-provider-tests:
+    name: Cross-Provider Tests
+    runs-on: ubuntu-latest
+    needs: [bc-core-tests, github-provider-tests, gitlab-provider-tests]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Install GitHub CLI
+        run: |
+          type -p curl >/dev/null || (sudo apt update && sudo apt install curl -y)
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+          sudo apt update
+          sudo apt install gh -y
+      
+      - name: Install GitLab CLI
+        run: |
+          curl -fsSL https://gitlab.com/gitlab-org/cli/-/releases/permalink/latest/downloads/glab_linux_amd64.deb -o glab.deb
+          sudo dpkg -i glab.deb
+          rm glab.deb
+      
+      - name: Make repocli executable
+        run: chmod +x ./repocli
+      
+      - name: Run all cross-provider tests using existing framework
+        run: ./tests/cross-testing/run-cross-tests.sh all
+        env:
+          CI: true
+          REPOCLI_DEBUG: 0
